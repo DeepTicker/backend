@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "start": "node app.js",
+    "init:db": "node src/scripts/run_init_sql.js",
+    "seed:stocks": "node src/scripts/insert_stock_theme.js",
+    "crawl:news": "node src/scripts/crawl_news.js",
+    "classify:news": "node src/scripts/classify_news_batch.js"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

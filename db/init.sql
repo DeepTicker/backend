@@ -56,3 +56,73 @@ CREATE TABLE stock_factor_analysis (
     confidence_score DECIMAL(5, 2),
     analysis_date DATE NOT NULL
 );
+
+
+------------------NEWS-----------------------
+-- ENUM 타입 정의
+CREATE TYPE news_category AS ENUM ('개별주', '산업군', '테마', '전반적', '그 외');
+CREATE TYPE summary_level AS ENUM ('초급', '중급', '고급');
+CREATE TYPE market_type_enum AS ENUM ('KOSPI', 'KOSDAQ');
+
+-- 1. 주식 정보
+CREATE TABLE tmp_stock (
+    stock_code VARCHAR(6) PRIMARY KEY,
+    stock_name TEXT NOT NULL,
+    themes JSONB DEFAULT '[]',
+    industry_group TEXT,
+    market_type market_type_enum,
+    description TEXT
+);
+
+-- 2. 뉴스 원문
+CREATE TABLE news_raw (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    press VARCHAR(100),
+    reporter VARCHAR(100),
+    url TEXT,
+    date TIMESTAMP,
+    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. 뉴스 분류
+CREATE TABLE news_classification (
+    news_id INTEGER REFERENCES news_raw(id) ON DELETE CASCADE,
+    category news_category,
+    representative TEXT,
+    classified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (news_id)
+);
+
+-- 4. 뉴스 요약
+CREATE TABLE news_summary (
+    news_id INTEGER REFERENCES news_raw(id) ON DELETE CASCADE,
+    level summary_level,
+    headline TEXT,
+    summary TEXT,
+    background_knowledge TEXT,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (news_id, level)
+);
+
+-- 5. 산업군 정보
+CREATE TABLE industry_info (
+    industry_name TEXT PRIMARY KEY,
+    description TEXT,
+    top_stocks TEXT[]  -- 종목코드 리스트
+);
+
+-- 6. 테마 정보
+CREATE TABLE theme_info (
+    theme_name TEXT PRIMARY KEY,
+    definition TEXT,
+    beneficiaries TEXT[]  -- 종목코드 리스트
+);
+
+-- 7. 산업 민감도
+CREATE TABLE macro_sensitivity (
+    macro_variable TEXT PRIMARY KEY,
+    positive_industries TEXT[],
+    negative_industries TEXT[]
+);
