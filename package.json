@@ -1,7 +1,8 @@
 {
   "scripts": {
     "start": "node app.js",
-    "init:db": "node src/scripts/init.sql",
+    "init2:db": "node src/scripts/init.sql",
+    "init:db": "node src/scripts/run_init_sql.js",
     "seed:stocks": "node src/scripts/insert_stock_theme.js",
     "crawl:news": "node src/scripts/crawlNews.js",
     "classify:news": "node src/scripts/classifyNewsBatch.js",
@@ -20,5 +21,12 @@
     "express": "^5.1.0",
     "node-cron": "^3.0.3",
     "pg": "^8.15.6"
-  }
+  },
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

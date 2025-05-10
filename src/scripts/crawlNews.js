@@ -1,6 +1,10 @@
+<<<<<<< HEAD
 //npm install axios cheerio dayjs 이거 설치해야함!
 //npm install chardet
 
+=======
+//npm install axios cheerio dayjs
+>>>>>>> main
 
 require("dotenv").config();
 
@@ -65,9 +69,15 @@ async function crawl() {
             const parsedDate = dayjs(rawDate, "YYYY-MM-DD HH:mm:ss").toDate();
 
             if (titleSet.has(subject)) {
+<<<<<<< HEAD
                 console.log(`🛑 중복 뉴스 발견: ${subject} → 크롤링 종료`);
                 await pool.end(); // DB 연결 정리
                 return; // 함수 종료
+=======
+                console.log(`🛑 중복 뉴스 발견: ${subject} → 크롤링 중단`);
+                currentDate = endDate.subtract(1, "day"); // 종료 유도
+                break;
+>>>>>>> main
             }
 
             const article_id = link.match(/article_id=(\d+)/)?.[1];
