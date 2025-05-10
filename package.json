@@ -11,5 +11,12 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "pg": "^8.14.1"
-  }
+  },
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }
