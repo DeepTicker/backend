@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 // src/scripts/classifyNewsBatch.js
-=======
->>>>>>> main
 require("dotenv").config();
 const { Pool } = require("pg");
 const dayjs = require("dayjs");
@@ -62,8 +59,4 @@ const pool = new Pool({
   } finally {
     await pool.end();
   }
-<<<<<<< HEAD
 })();
-=======
-})();
->>>>>>> main

@@ -1,7 +1,7 @@
 {
   "scripts": {
     "start": "node app.js",
-    "init2:db": "node src/scripts/init.sql",
+    "init2:db": "node src/scripts/initDB.js",
     "seed:stocks": "node src/scripts/insert_stock_theme.js",
     "crawl:news": "node src/scripts/crawlNews.js",
     "classify:news": "node src/scripts/classifyNewsBatch.js",
