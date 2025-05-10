@@ -100,27 +100,6 @@ CREATE TABLE stock_recommendation (
     recommended_date DATE NOT NULL
 );
 
--- 4. stock_news: 뉴스 데이터
-CREATE TABLE stock_news (
-    news_id SERIAL PRIMARY KEY,
-    stock_id INTEGER REFERENCES stock_data(stock_id),
-    news_date DATE NOT NULL,
-    news_content TEXT,
-    event_type VARCHAR(50),
-    entity_recognized TEXT
-);
-
--- 5. stock_factor_analysis: 상승/하락 요인 분석
-CREATE TABLE stock_factor_analysis (
-    analysis_id SERIAL PRIMARY KEY,
-    stock_id INTEGER REFERENCES stock_data(stock_id),
-    inc_factor_description TEXT,
-    dec_factor_description TEXT,
-    confidence_score DECIMAL(5, 2),
-    analysis_date DATE NOT NULL
-);
-
-
 ------------------NEWS-----------------------
 -- ENUM 타입 정의
 CREATE TYPE news_category AS ENUM ('개별주', '산업군', '테마', '전반적', '그 외');
