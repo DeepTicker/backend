@@ -104,15 +104,12 @@ CREATE TABLE stock_recommendation (
 -- ENUM 타입 정의
 CREATE TYPE news_category AS ENUM ('개별주', '산업군', '테마', '전반적', '그 외');
 CREATE TYPE summary_level AS ENUM ('초급', '중급', '고급');
-CREATE TYPE market_type_enum AS ENUM ('KOSPI', 'KOSDAQ');
-
 -- 1. 주식 정보
 CREATE TABLE tmp_stock (
     stock_code VARCHAR(6) PRIMARY KEY,
     stock_name TEXT NOT NULL,
     themes JSONB DEFAULT '[]',
     industry_group TEXT,
-    market_type market_type_enum,
     description TEXT
 );
 
@@ -131,10 +128,10 @@ CREATE TABLE news_raw (
 -- 3. 뉴스 분류
 CREATE TABLE news_classification (
     news_id INTEGER REFERENCES news_raw(id) ON DELETE CASCADE,
-    category news_category,
-    representative TEXT,
+    category news_category,        -- ENUM: '산업군', '테마', '전반적', '개별주' , '그 외'
+    representative TEXT,          -- 개별주: 종목명들, 산업군/테마: 하나의 명칭, 전반적: 요약문
     classified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (news_id)
+    PRIMARY KEY (news_id, category)
 );
 
 -- 4. 뉴스 요약

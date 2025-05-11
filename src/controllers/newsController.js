@@ -14,9 +14,20 @@ async function getMainNews(req, res) {
 
     // 뉴스 목록 쿼리
     const query = `
-      SELECT nr.id, nr.title, nr.press, nr.date, nc.category, nc.representative
+      SELECT 
+        nr.id, 
+        nr.title, 
+        nr.press, 
+        nr.date,
+        json_agg(
+          json_build_object(
+            'category', nc.category,
+            'representative', nc.representative
+          )
+        ) as classifications
       FROM news_raw nr
-      JOIN news_classification nc ON nr.id = nc.news_id
+      LEFT JOIN news_classification nc ON nr.id = nc.news_id
+      GROUP BY nr.id, nr.title, nr.press, nr.date
       ORDER BY nr.date DESC NULLS LAST, nr.id DESC
       LIMIT $1
     `;
@@ -37,9 +48,20 @@ async function getNewsList(req, res) {
 
   try {
     const query = `
-      SELECT nr.id, nr.title, nr.press, nr.date ,nc.category, nc.representative
+      SELECT 
+        nr.id, 
+        nr.title, 
+        nr.press, 
+        nr.date,
+        json_agg(
+          json_build_object(
+            'category', nc.category,
+            'representative', nc.representative
+          )
+        ) as classifications
       FROM news_raw nr
-      JOIN news_classification nc ON nr.id = nc.news_id
+      LEFT JOIN news_classification nc ON nr.id = nc.news_id
+      GROUP BY nr.id, nr.title, nr.press, nr.date
       ORDER BY nr.date DESC NULLS LAST, nr.id DESC
       LIMIT $1 OFFSET $2
     `;
