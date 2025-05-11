@@ -5,8 +5,8 @@
     "seed:stocksfornews": "node src/scripts/insertNewsStockData.js",
     "crawl:news": "node src/scripts/crawlNews.js",
     "classify:news": "node src/scripts/classifyNewsBatch.js",
-    "start:newsScheduler" : "node src/scripts/newsScheduler.js",
-    "start:geminiSummarize" : "node src/scripts/batchSummarizeNews.js"
+    "start:newsScheduler": "node src/scripts/newsScheduler.js",
+    "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -16,7 +16,7 @@
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "dayjs": "^1.11.13",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "node-cron": "^3.0.3",
     "pg": "^8.15.6"

@@ -140,7 +140,7 @@ async function getNewsDetail(req, res) {
         const level = req.query.level || '중급';
         console.log('뉴스 상세 조회:', { newsId, level });
 
-        // 1. 뉴스 원문 조회
+        // 1. 뉴스 원문과 분류 정보 조회
         const newsQuery = `
             SELECT 
                 nr.id,
@@ -151,11 +151,16 @@ async function getNewsDetail(req, res) {
                 nr.url,
                 nr.date,
                 nr.crawled_at,
-                nc.category,
-                nc.representative
+                json_agg(
+                    json_build_object(
+                        'category', nc.category,
+                        'representative', nc.representative
+                    )
+                ) FILTER (WHERE nc.category IS NOT NULL) as classifications
             FROM news_raw nr
             LEFT JOIN news_classification nc ON nr.id = nc.news_id
             WHERE nr.id = $1
+            GROUP BY nr.id, nr.title, nr.content, nr.press, nr.reporter, nr.url, nr.date, nr.crawled_at
         `;
         const newsResult = await pool.query(newsQuery, [newsId]);
         
@@ -169,33 +174,63 @@ async function getNewsDetail(req, res) {
         const summaryQuery = `
             SELECT 
                 headline AS one_line_summary,
-                summary AS full_summary,
-                background_knowledge AS background
+                summary AS full_summary
             FROM news_summary
             WHERE news_id = $1 AND level = $2
         `;
         const summaryResult = await pool.query(summaryQuery, [newsId, level]);
-        const gptNews = summaryResult.rows[0] || { one_line_summary: null, full_summary: null, background: null };
+        const gptNews = summaryResult.rows[0] || { one_line_summary: null, full_summary: null };
         console.log('요약 데이터 조회 결과:', gptNews);
 
-        // 3. 배경지식 생성 - 항상 실행
-        console.log('배경지식 생성 시작');
-        const background = await generateBackground(
-            rawNews.category,
-            level,
-            rawNews.content,
-            rawNews.representative
-        );
-        
-        if (background) {
-            gptNews.background = gptNews.background 
-                ? `${gptNews.background}<br><br>${background}`
-                : background;
-            console.log('배경지식 생성 완료:', gptNews.background);
+        // 3. 각 카테고리별 최신 이슈 조회
+        const backgrounds = [];
+        for (const classification of rawNews.classifications) {
+            const { category, representative } = classification;
+            let background = null;
+
+            try {
+                switch (category) {
+                    case '산업군':
+                        background = await generateIntermediateIndustryBackground(representative);
+                        break;
+                    case '테마':
+                        background = await generateIntermediateThemeBackground(representative);
+                        break;
+                    case '전반적':
+                        background = await generateIntermediateMacroBackground();
+                        break;
+                    case '개별주':
+                        background = await generateIntermediateStockBackground(representative);
+                        break;
+                    case '그 외':
+                        // 그 외 카테고리는 배경지식 없음
+                        break;
+                }
+
+                if (background) {
+                    backgrounds.push({
+                        category,
+                        representative,
+                        background
+                    });
+                }
+            } catch (error) {
+                console.error(`${category} 배경지식 조회 중 오류:`, error);
+                // 개별 카테고리 오류는 전체 프로세스를 중단하지 않음
+            }
         }
 
         // 4. 합쳐서 반환
-        res.json({ rawNews, gptNews });
+        res.json({ 
+            rawNews: {
+                ...rawNews,
+                classifications: rawNews.classifications
+            }, 
+            gptNews: {
+                ...gptNews,
+                backgrounds
+            }
+        });
     } catch (error) {
         console.error('Error fetching news detail:', error);
         res.status(500).json({ error: error.message });
@@ -210,10 +245,19 @@ async function generateNewsSummary(req, res) {
 
         // 1. DB에서 필요한 정보 조회
         const query = `
-            SELECT nr.title, nr.content, nc.category, nc.representative
+            SELECT 
+                nr.title, 
+                nr.content,
+                json_agg(
+                    json_build_object(
+                        'category', nc.category,
+                        'representative', nc.representative
+                    )
+                ) FILTER (WHERE nc.category IS NOT NULL) as classifications
             FROM news_raw nr
             LEFT JOIN news_classification nc ON nr.id = nc.news_id
             WHERE nr.id = $1
+            GROUP BY nr.id, nr.title, nr.content
         `;
         const { rows } = await pool.query(query, [newsId]);
         
@@ -221,15 +265,76 @@ async function generateNewsSummary(req, res) {
             return res.status(404).json({ error: '뉴스를 찾을 수 없습니다.' });
         }
         
-        const { title, content, category, representative } = rows[0];
+        const { title, content, classifications } = rows[0];
 
-        // 2. 프롬프트 생성
-        const prompt = generateSummaryPrompt(level, category, representative);
+        // 2. 한 줄 요약 생성
+        const headlinePrompt = generateHeadlinePrompt(classifications);
+        const headline = await geminiSummary(headlinePrompt, content);
 
-        // 3. Gemini 요약 호출
-        const summary = await geminiSummary(prompt, content);
+        // 3. 전체 요약 생성
+        const summaryPrompt = generateSummaryPrompt(level, classifications);
+        const fullSummary = await geminiSummary(summaryPrompt, content);
 
-        res.json({ summary });
+        // 4. 기본 요약 정보 저장
+        const insertSummaryQuery = `
+            INSERT INTO news_summary 
+            (news_id, level, headline, summary)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (news_id, level) 
+            DO UPDATE SET 
+                headline = EXCLUDED.headline,
+                summary = EXCLUDED.summary,
+                generated_at = CURRENT_TIMESTAMP
+        `;
+        
+        await pool.query(insertSummaryQuery, [
+            newsId, level, headline, fullSummary
+        ]);
+
+        // 5. 각 카테고리별 최신 이슈 조회
+        const backgrounds = [];
+        for (const classification of classifications) {
+            const { category, representative } = classification;
+            let background = null;
+
+            try {
+                switch (category) {
+                    case '산업군':
+                        background = await generateIntermediateIndustryBackground(representative);
+                        break;
+                    case '테마':
+                        background = await generateIntermediateThemeBackground(representative);
+                        break;
+                    case '전반적':
+                        background = await generateIntermediateMacroBackground();
+                        break;
+                    case '개별주':
+                        background = await generateIntermediateStockBackground(representative);
+                        break;
+                    case '그 외':
+                        // 그 외 카테고리는 배경지식 없음
+                        break;
+                }
+
+                if (background) {
+                    backgrounds.push({
+                        category,
+                        representative,
+                        background
+                    });
+                }
+            } catch (error) {
+                console.error(`${category} 배경지식 생성 중 오류:`, error);
+                // 개별 카테고리 오류는 전체 프로세스를 중단하지 않음
+            }
+        }
+
+        res.json({ 
+            headline,
+            fullSummary,
+            classifications,
+            backgrounds
+        });
     } catch (error) {
         console.error('Gemini 요약 오류:', error);
         res.status(500).json({ error: 'Gemini 요약 실패' });
