@@ -284,33 +284,26 @@ async function generateBackground(category, level, content, representative) {
     console.log('배경지식 생성 시작:', { category, level, representative });
     let background = '';
 
-    // 1. 모든 카테고리의 초급 레벨에 대한 용어 설명
     if (level === '초급') {
-        console.log('초급 레벨 용어 설명 생성');
-        const termBackground = await generateBasicTermBackground(content);
-        if (termBackground) {
-            background += termBackground;
-            console.log('용어 설명 생성 완료');
+        if (!termCache.used) {
+            const termBackground = await generateBasicTermBackground(content);
+            if (termBackground) {
+                termCache.used = true;
+                termCache.html = termBackground;
+                background += termBackground;
+            }
+        } else if (termCache.html) {
+            background += ''; // 이미 추가됨
         }
-    }
 
-    // 2. 산업군 초급 레벨의 산업 정보
-    if (category === '산업군' && level === '초급' && representative) {
-        console.log('산업군 초급 정보 생성');
-        const industryBackground = await generateBasicIndustryBackground(representative);
-        if (industryBackground) {
-            background += industryBackground.html;
-            console.log('산업군 정보 생성 완료');
+        if (category === '산업군' && representative) {
+            const industryBackground = await generateBasicIndustryBackground(representative);
+            if (industryBackground) background += industryBackground.html;
         }
-    }
 
-    // 3. 테마 초급 레벨의 테마 정보
-    if (category === '테마' && level === '초급' && representative) {
-        console.log('테마 초급 정보 생성');
-        const themeBackground = await generateBasicThemeBackground(representative);
-        if (themeBackground) {
-            background += themeBackground.html;
-            console.log('테마 정보 생성 완료');
+        if (category === '테마' && representative) {
+            const themeBackground = await generateBasicThemeBackground(representative);
+            if (themeBackground) background += themeBackground.html;
         }
     }
 
