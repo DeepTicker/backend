@@ -5,14 +5,14 @@ const { model } = require('../../config/gemini');
 // 특정 뉴스 정보 가져오기
 async function getNewsInfo(newsId) {
     if (!newsId) return null;
-    
+
     const query = `
         SELECT nr.id, nr.title, nr.content, nc.category, nc.representative
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
         WHERE nr.id = $1
     `;
-    
+
     const result = await pool.query(query, [newsId]);
     return result.rows.length > 0 ? result.rows[0] : null;
 }
@@ -28,7 +28,7 @@ async function getRecentThemeNews(themeName) {
         AND nr.date >= CURRENT_DATE - INTERVAL '20 days'
         ORDER BY nr.date DESC
     `;
-    
+
     const result = await pool.query(query, [themeName]);
     return result.rows;
 }
@@ -47,58 +47,62 @@ async function generateThemeSummary(themeName, news, level = '중급') {
         case '고급':
             levelInstruction = '전문가 수준의 심층적인 분석을 제공해주세요.';
             break;
-        default: // 중급
+        default:
             levelInstruction = '일반 투자자가 이해할 수 있는 수준으로 설명해주세요.';
     }
 
     const prompt = `
         ${themeName} 테마의 최근 20일간의 뉴스를 분석하여 가장 중요한 이슈 5가지를 추출해주세요.
         ${levelInstruction}
-        
+
         각 이슈는 다음 형식으로 작성해주세요:
         - 이슈 제목: 간단명료한 제목
         - 이슈 설명: 1-2 문장으로 된 설명. 고등학교-대학생 수준의 설명.
-        
+
         분석할 뉴스:
-        ${news.map(n => `- ${n.title} (${n.published_at})`).join('\n')}
+        ${news.map(n => `- ${n.title}`).join('\n')}
     `;
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    
-    // 응답 파싱
+
+    console.log('=== Gemini API 응답 ===');
+    console.log('원본 응답:', responseText);
+
     const issues = [];
     const lines = responseText.split('\n');
-    
+
     let currentTitle = '';
     let currentDescription = '';
-    
+
     for (const line of lines) {
-        if (line.startsWith('- **이슈 제목:**')) {
+        const trimmed = line.trim();
+
+        if (/이슈 제목[:：]/i.test(trimmed)) {
             if (currentTitle && currentDescription) {
                 issues.push({
-                    title: currentTitle.trim(),
-                    description: currentDescription.trim()
+                    title: currentTitle,
+                    description: currentDescription
                 });
             }
-            currentTitle = line.replace('- **이슈 제목:**', '').trim();
+            currentTitle = trimmed.replace(/.*이슈 제목[:：]\s*/i, '');
             currentDescription = '';
-        } else if (line.startsWith('- **이슈 설명:**')) {
-            currentDescription = line.replace('- **이슈 설명:**', '').trim();
-        } else if (currentDescription && line.trim()) {
-            currentDescription += ' ' + line.trim();
+        } else if (/이슈 설명[:：]/i.test(trimmed)) {
+            currentDescription = trimmed.replace(/.*이슈 설명[:：]\s*/i, '');
+        } else if (currentDescription && trimmed) {
+            currentDescription += ' ' + trimmed;
         }
     }
-    
+
     if (currentTitle && currentDescription) {
         issues.push({
-            title: currentTitle.trim(),
-            description: currentDescription.trim()
+            title: currentTitle,
+            description: currentDescription
         });
     }
 
     if (issues.length === 0) {
-        throw new Error('No issues could be parsed from the response');
+        throw new Error('No issues could be parsed from the response - generateNewsThemeIn.js');
     }
 
     const summaryResult = {
@@ -119,9 +123,9 @@ async function saveThemeIssues(themeName, titles, descriptions) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
+
         const currentDate = new Date().toISOString().split('T')[0];
-        
+
         const query = `
             INSERT INTO theme_issue 
             (theme_name, summary_date, summary_title, summary_detail)
@@ -131,14 +135,14 @@ async function saveThemeIssues(themeName, titles, descriptions) {
                 summary_title = $3,
                 summary_detail = $4
         `;
-        
+
         await client.query(query, [
             themeName,
             currentDate,
             titles,
             descriptions
         ]);
-        
+
         await client.query('COMMIT');
     } catch (error) {
         await client.query('ROLLBACK');
@@ -152,31 +156,31 @@ async function saveThemeIssues(themeName, titles, descriptions) {
 async function generateAndSaveThemeIssues(newsId, level) {
     console.log('=== generateAndSaveThemeIssues 시작 ===');
     console.log(`newsId: ${newsId}, level: ${level}`);
-    
+
     try {
         const newsInfo = await getNewsInfo(newsId);
-        
+
         if (!newsInfo) {
             throw new Error('뉴스 정보를 찾을 수 없습니다.');
         }
 
         if (newsInfo.category === '테마' && newsInfo.representative) {
             console.log(`테마 ${newsInfo.representative} 처리 시작...`);
-            
+
             const recentNews = await getRecentThemeNews(newsInfo.representative);
             console.log(`${newsInfo.representative} 테마의 최근 뉴스 ${recentNews.length}개 발견`);
-            
+
             const summary = await generateThemeSummary(newsInfo.representative, recentNews, level);
-            
+
             if (!summary || !summary.titles || !summary.descriptions) {
                 throw new Error('요약 생성에 실패했습니다.');
             }
-            
+
             await saveThemeIssues(newsInfo.representative, summary.titles, summary.descriptions);
-            
+
             return true;
         }
-        
+
         return false;
     } catch (error) {
         console.error('Error in generateAndSaveThemeIssues:', error);

@@ -360,5 +360,12 @@ async function generateBackground(category, level, content, representative) {
 }
 
 module.exports = {
-    generateBackground
+    generateBackground,
+    generateBasicTermBackground,
+    generateBasicIndustryBackground,
+    generateBasicThemeBackground,
+    generateIntermediateIndustryBackground,
+    generateIntermediateThemeBackground,
+    generateIntermediateMacroBackground,
+    generateIntermediateStockBackground
 };

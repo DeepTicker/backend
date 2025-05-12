@@ -4,7 +4,6 @@
     "init2:db": "node src/scripts/initDB.js",
     "seed:stocksfornews": "node src/scripts/insertNewsStockData.js",
     "crawl:news": "node src/scripts/crawlNews.js",
-    "classify:news": "node src/scripts/classifyNewsBatch.js",
     "start:newsScheduler": "node src/scripts/newsScheduler.js",
     "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js"
   },

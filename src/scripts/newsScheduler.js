@@ -31,10 +31,10 @@ async function processNews() {
             });
         });
 
-        // 2. Classify news
+        // 2. Classify news using Python script
         log('Starting news classification...');
         await new Promise((resolve, reject) => {
-            exec('npm run classify:news', (error, stdout, stderr) => {
+            exec('python src/scripts/classify_news.py', (error, stdout, stderr) => {
                 if (error) {
                     log(`Classification error: ${error}`, 'error');
                     reject(error);

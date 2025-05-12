@@ -1,6 +1,11 @@
 // src/controllers/newsController.js
 const pool = require('../../config/db');
-const { generateBackground } = require('../services/generateBackground');
+const { 
+    generateIntermediateIndustryBackground,
+    generateIntermediateThemeBackground,
+    generateIntermediateMacroBackground,
+    generateIntermediateStockBackground
+} = require('../services/generateBackground');
 const { model } = require('../../config/gemini');
 
 // 메인 뉴스 조회 컨트롤러 (getNewsList.js에서 통합)
@@ -133,14 +138,13 @@ async function getNews(req, res) {
     }
 }
 
-// 뉴스 상세 조회 컨트롤러
+// ✅ 수정된 뉴스 상세 조회 컨트롤러 (프론트에 맞춤)
 async function getNewsDetail(req, res) {
     try {
         const newsId = parseInt(req.params.id);
         const level = req.query.level || '중급';
-        console.log('뉴스 상세 조회:', { newsId, level });
 
-        // 1. 뉴스 원문과 분류 정보 조회
+        // 1. 뉴스 원문 + 분류 정보
         const newsQuery = `
             SELECT 
                 nr.id,
@@ -151,26 +155,33 @@ async function getNewsDetail(req, res) {
                 nr.url,
                 nr.date,
                 nr.crawled_at,
-                json_agg(
+                COALESCE(
+                  json_agg(
                     json_build_object(
-                        'category', nc.category,
-                        'representative', nc.representative
+                      'category', nc.category,
+                      'representative', nc.representative,
+                      'stock_code', s.stock_code,
+                      'theme_name', t.theme_name
                     )
-                ) FILTER (WHERE nc.category IS NOT NULL) as classifications
+                  ) FILTER (WHERE nc.category IS NOT NULL),
+                  '[]'
+                ) as classifications
             FROM news_raw nr
             LEFT JOIN news_classification nc ON nr.id = nc.news_id
+            LEFT JOIN tmp_stock s ON nc.representative = s.stock_code OR nc.representative = s.stock_name
+            LEFT JOIN theme_info t ON nc.representative = t.theme_name
             WHERE nr.id = $1
-            GROUP BY nr.id, nr.title, nr.content, nr.press, nr.reporter, nr.url, nr.date, nr.crawled_at
+            GROUP BY nr.id
         `;
         const newsResult = await pool.query(newsQuery, [newsId]);
-        
+
         if (newsResult.rows.length === 0) {
             return res.status(404).json({ error: '뉴스를 찾을 수 없습니다.' });
         }
-        const rawNews = newsResult.rows[0];
-        console.log('뉴스 원문 조회 결과:', rawNews);
 
-        // 2. 요약 데이터 조회
+        const rawNews = newsResult.rows[0];
+
+        // 2. 요약 정보
         const summaryQuery = `
             SELECT 
                 headline AS one_line_summary,
@@ -179,10 +190,9 @@ async function getNewsDetail(req, res) {
             WHERE news_id = $1 AND level = $2
         `;
         const summaryResult = await pool.query(summaryQuery, [newsId, level]);
-        const gptNews = summaryResult.rows[0] || { one_line_summary: null, full_summary: null };
-        console.log('요약 데이터 조회 결과:', gptNews);
+        const summary = summaryResult.rows[0] || { one_line_summary: null, full_summary: null };
 
-        // 3. 각 카테고리별 최신 이슈 조회
+        // 3. 배경지식 조회
         const backgrounds = [];
         for (const classification of rawNews.classifications) {
             const { category, representative } = classification;
@@ -202,38 +212,32 @@ async function getNewsDetail(req, res) {
                     case '개별주':
                         background = await generateIntermediateStockBackground(representative);
                         break;
-                    case '그 외':
-                        // 그 외 카테고리는 배경지식 없음
-                        break;
                 }
 
                 if (background) {
-                    backgrounds.push({
-                        category,
-                        representative,
-                        background
-                    });
+                    backgrounds.push({ category, representative, background });
                 }
-            } catch (error) {
-                console.error(`${category} 배경지식 조회 중 오류:`, error);
-                // 개별 카테고리 오류는 전체 프로세스를 중단하지 않음
+            } catch (e) {
+                console.error(`⚠️ ${category} 배경지식 오류:`, e);
             }
         }
 
-        // 4. 합쳐서 반환
-        res.json({ 
+        // ✅ 프론트가 기대하는 응답 형식
+        res.json({
             rawNews: {
-                ...rawNews,
+                id: rawNews.id,
+                title: rawNews.title,
+                content: rawNews.content,
+                press: rawNews.press,
+                date: rawNews.date,
                 classifications: rawNews.classifications
-            }, 
-            gptNews: {
-                ...gptNews,
-                backgrounds
-            }
+            },
+            summary,
+            backgrounds
         });
-    } catch (error) {
-        console.error('Error fetching news detail:', error);
-        res.status(500).json({ error: error.message });
+    } catch (err) {
+        console.error('❌ 뉴스 상세 오류:', err);
+        res.status(500).json({ error: '서버 오류' });
     }
 }
 

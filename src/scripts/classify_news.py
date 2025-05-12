@@ -28,7 +28,7 @@ def load_unclassified_news(conn):
     WHERE id NOT IN (
         SELECT DISTINCT news_id FROM news_classification
     )
-    ORDER BY date DESC
+    ORDER BY id
     LIMIT 100
     """
     return pd.read_sql(query, conn)
@@ -44,14 +44,14 @@ def insert_classification(conn, news_id, category, representative):
         cur.execute(query, (news_id, category, representative, now))
 
 def main():
-    print("✅ 뉴스 분류 시작")
+    print(" 뉴스 분류 시작")
 
     # DB 연결
     conn = psycopg2.connect(**DB_CONFIG)
 
     # 분류할 뉴스 로드
     df = load_unclassified_news(conn)
-    print(f"🔍 총 {len(df)}건의 뉴스 로드됨")
+    print(f" 총 {len(df)}건의 뉴스 로드됨")
 
     for _, row in df.iterrows():
         news_id = row['id']
@@ -67,7 +67,7 @@ def main():
 
     conn.commit()
     conn.close()
-    print("✅ 모든 분류 결과 저장 완료")
+    print(" 모든 분류 결과 저장 완료")
 
 if __name__ == "__main__":
     main()
