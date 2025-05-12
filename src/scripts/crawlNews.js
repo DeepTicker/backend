@@ -94,6 +94,16 @@ async function crawl() {
                 $article("em.media_end_head_journalist_name").text().trim() ||
                 "[기자 없음]";
 
+            const imgTag = $article("span.end_photo_org img").first();
+            if (imgTag.length > 0) {
+              image_url = imgTag.attr("src");
+            }
+            
+            const imgDescTag = $article("span.end_photo_org .img_desc");
+            if (imgDescTag.length > 0) {
+              image_desc = imgDescTag.text();
+            }
+
             results.push({
                 title: subject,
                 content,
@@ -101,6 +111,8 @@ async function crawl() {
                 reporter,
                 url: newsURL,
                 date: parsedDate,
+                image_url,
+                image_desc,
             });
 
             titleSet.add(subject);

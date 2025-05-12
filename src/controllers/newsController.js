@@ -158,6 +158,8 @@ async function getNewsDetail(req, res) {
                 nr.url,
                 nr.date,
                 nr.crawled_at,
+                nr.image_url,
+                nr.image_desc,
                 COALESCE(
                   json_agg(
                     json_build_object(
@@ -264,7 +266,9 @@ async function getNewsDetail(req, res) {
                 content: rawNews.content,
                 press: rawNews.press,
                 date: rawNews.date,
-                classifications: rawNews.classifications
+                classifications: rawNews.classifications,
+                image_url: rawNews.image_url,
+                image_desc: rawNews.image_desc
             },
             summary,
             backgrounds

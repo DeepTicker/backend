@@ -120,6 +120,8 @@ CREATE TABLE news_raw (
     content TEXT NOT NULL,
     press VARCHAR(100),
     reporter VARCHAR(100),
+    image_url TEXT,
+    image_desc TEXT,
     url TEXT,
     date TIMESTAMP,
     crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
