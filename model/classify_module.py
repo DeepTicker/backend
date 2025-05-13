@@ -9,6 +9,7 @@ import re
 import json
 from dotenv import load_dotenv
 import google.generativeai as genai
+import time
 
 # ---------------------------
 # 0. 기본 설정
@@ -175,6 +176,7 @@ JSON:
         return None, None
 
     try:
+        time.sleep(6)
         response = gemini.generate_content(prompt)
         response_text = response.text.strip()
         try:

@@ -8,24 +8,15 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const iconv = require("iconv-lite");
 const chardet = require("chardet");
-const { Pool } = require("pg");
+const pool = require('../../config/db');
 const dayjs = require("dayjs");
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
-
-// DB 연결 설정
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-});
 
 const baseURL = "https://finance.naver.com/news/mainnews.naver";
 
 async function crawl() {
   const today = dayjs(); // 오늘
-  const endDate = today.subtract(3, "day"); // 2일 전
+  const endDate = today.subtract(0, "day"); // 2일 전
 
   let currentDate = today;
   let page = 1;
@@ -66,8 +57,7 @@ async function crawl() {
 
             if (titleSet.has(subject)) {
                 console.log(`🛑 중복 뉴스 발견: ${subject} → 크롤링 종료`);
-                await pool.end(); // DB 연결 정리
-                return; // 함수 종료
+                break;
             }
 
             const article_id = link.match(/article_id=(\d+)/)?.[1];
@@ -94,14 +84,18 @@ async function crawl() {
                 $article("em.media_end_head_journalist_name").text().trim() ||
                 "[기자 없음]";
 
-            const imgTag = $article("span.end_photo_org img").first();
+            let image_url = null;
+            let image_desc = null;
+
+            const imgTag = $article("img#img1").first();
             if (imgTag.length > 0) {
-              image_url = imgTag.attr("src");
+              image_url = imgTag.attr("data-src") || null;
             }
-            
-            const imgDescTag = $article("span.end_photo_org .img_desc");
+
+            // 설명: <em class="img_desc">...</em>
+            const imgDescTag = $article("em.img_desc").first();
             if (imgDescTag.length > 0) {
-              image_desc = imgDescTag.text();
+              image_desc = imgDescTag.text().trim();
             }
 
             results.push({
@@ -117,6 +111,8 @@ async function crawl() {
 
             titleSet.add(subject);
             console.log(`✅ ${subject} | ${press} | ${reporter} | ${parsedDate}`);
+            console.log(`🖼️ 이미지: ${image_url} / 설명: ${image_desc}`);
+            console.log("🔎 이미지 태그 HTML:", $article("span.end_photo_org").html());
             await sleep(200);
             } catch (e) {
             console.warn("❌ 내부 뉴스 파싱 오류:", e.message);
@@ -136,25 +132,30 @@ async function crawl() {
     }
   }
 
-  results.reverse(); // 오래된 뉴스부터 ID 부여
-  for (const news of results) {
-    const insertQuery = `
-      INSERT INTO news_raw (id, title, content, press, reporter, url, date)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      ON CONFLICT (id) DO NOTHING;
-    `;
-    try {
-      await pool.query(insertQuery, [
-        id++,
-        news.title,
-        news.content,
-        news.press,
-        news.reporter,
-        news.url,
-        news.date,
-      ]);
-    } catch (err) {
-      console.error(`❌ DB 삽입 실패 (${id - 1}):`, err.message);
+  if (results.length > 0) {
+
+    results.reverse(); // 오래된 뉴스부터 ID 부여
+    for (const news of results) {
+      const insertQuery = `
+        INSERT INTO news_raw (id, title, content, press, reporter, url, date, image_url, image_desc)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO NOTHING;
+      `;
+      try {
+        await pool.query(insertQuery, [
+          id++,
+          news.title,
+          news.content,
+          news.press,
+          news.reporter,
+          news.url,
+          news.date,
+          news.image_url,
+          news.image_desc,
+        ]);
+      } catch (err) {
+        console.error(`❌ DB 삽입 실패 (${id - 1}):`, err.message);
+      }
     }
   }
 
