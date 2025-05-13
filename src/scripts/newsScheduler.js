@@ -46,7 +46,22 @@ async function processNews() {
             });
         });
 
-        // 3. Start summarization
+        // 3. Process news terms (NER + Gemini)
+        log('Starting news terms processing...');
+        await new Promise((resolve, reject) => {
+            exec('node src/scripts/processNewsTerms.js', (error, stdout, stderr) => {
+                if (error) {
+                    log(`Terms processing error: ${error}`, 'error');
+                    reject(error);
+                    return;
+                }
+                log('News terms processing completed', 'success');
+                if (stdout) log(`Terms processor output: ${stdout}`);
+                resolve();
+            });
+        });
+
+        // 4. Start summarization
         log('Starting news summarization...');
         await new Promise((resolve, reject) => {
             exec('node src/scripts/batchSummarizeNews.js', (error, stdout, stderr) => {

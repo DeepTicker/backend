@@ -5,20 +5,15 @@ const path = require('path');
 
 // 1. 뉴스 기사에서 경제 용어 매칭
 async function extractFinancialTerms(newsContent) {
-  // 간단한 구현: 미리 정의된 용어 목록과 매칭
-  const allTerms = await pool.query('SELECT term FROM financial_terms');
-  const termList = allTerms.rows.map(row => row.term);
+  // 1. financial_terms 테이블에서 모든 용어 가져오기
+  const allTerms = await pool.query('SELECT term, explanation FROM financial_terms');
   
-  // 추출된 용어 목록 (실제 NER 구현 필요)
-  const extractedTerms = [];
+  // 2. 본문에 포함된 용어만 필터링
+  const matchedTerms = allTerms.rows.filter(term => 
+      newsContent.includes(term.term)
+  );
   
-  for (const term of termList) {
-    if (newsContent.includes(term)) {
-      extractedTerms.push(term);
-    }
-  }
-  
-  return extractedTerms;
+  return matchedTerms;
 }
 
 // 2. 용어가 DB에 있는지 확인
@@ -104,13 +99,10 @@ async function saveTerms(newsId, terms) {
 /**
  * 통합 실행 함수
  */
-async function processNewsTerm(newsId, newsContent) {
-  try {
-    const terms = await extractTermsFromText(newsContent);
-    await saveTerms(newsId, terms);
-  } catch (err) {
-    console.error(`⚠️ 뉴스 ${newsId} 처리 실패:`, err);
-  }
+async function processNewsTerms(newsContent) {
+  // 단순히 본문에 포함된 용어만 반환
+  const terms = await extractFinancialTerms(newsContent);
+  return { knownTerms: terms, unknownTerms: [] };
 }
 
-module.exports = { processNewsTerm ,  extractFinancialTerms, checkTermsInDatabase};
+module.exports = { processNewsTerms,  extractFinancialTerms, checkTermsInDatabase};

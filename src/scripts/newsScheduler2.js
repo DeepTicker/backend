@@ -43,12 +43,16 @@ async function processNews() {
         log('➡️ Step 2: Starting news classification');
         await runCommand('npm run start:classify', 'News Classification');
 
-        // 3. Summarize
-        log('➡️ Step 3: Starting news summarization');
+        // 3. Process news terms
+        log('➡️ Step 3: Starting news terms processing');
+        await runCommand('npm run start:getTerms', 'News Terms Processing');
+
+        // 4. Summarize
+        log('➡️ Step 4: Starting news summarization');
         await runCommand('npm run start:geminiSummarize', 'News Summarization');
 
-        // 4. Evaluate and resummarize if needed
-        log('➡️ Step 4: Starting evaluation/resummarization loop');
+        // 5. Evaluate and resummarize if needed
+        log('➡️ Step 5: Starting evaluation/resummarization loop');
         let badCount = Infinity;
         let loopCount = 0;
 
