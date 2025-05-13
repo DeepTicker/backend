@@ -28,7 +28,11 @@ async function crawlBokDictionary(term) {
 }
 
 async function generateExplanationWithLLM(term) {
-  const prompt = `${term}은(는) 무엇인가요? 경제 초보자가 이해할 수 있게 설명해주세요.`;
+  const prompt = `${term}이란 무엇인가?  
+경제 지식을 갖춘 사람을 대상으로, 2~3문장으로 정확하고 전문적으로 설명하라.  
+문장은 '~것.', '~이다.', '~한다.'처럼 끝내고, '~예요', '~입니다'는 사용하지 마라.  
+설명은 포괄적이되 군더더기 없이 구성하라.`;
+
   const result = await model.generateContent(prompt);
   return result.response.candidates[0].content.parts[0].text.trim();
 }
@@ -41,7 +45,10 @@ function classifyTerm(term, explanation) {
 }
 
 async function simplifyExplanation(explanation) {
-  const prompt = `다음 설명을 중학생이 이해할 수 있게 바꿔주세요 (2-3문장):\n"${explanation}"`;
+  const prompt = `다음 설명을 중학생이 이해할 수 있게 바꿔줘.  
+어렵지 않게 2~3문장으로 요약하되, '~것.', '~이다.', '~한다.'로 끝내고 '~예요', '~입니다'는 사용하지 마라.  
+설명: "${explanation}"`;
+
   const result = await model.generateContent(prompt);
   return result.response.candidates[0].content.parts[0].text.trim();
 }

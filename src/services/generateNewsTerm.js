@@ -1,6 +1,9 @@
+// src/services/generateNewsTerm.js
+
 const pool = require('../../config/db');
-const { extractFinancialTerms, checkTermsInDatabase } = require('../utils/extractNewsTerm');
+const { extractFinancialTerms, checkTermsInDatabase } = require('../utils/extractAndSaveNewsTerm');
 const { crawlBokDictionary, simplifyExplanation, saveNewTerm, generateExplanationWithLLM, classifyTerm } = require('../utils/addNewTerm');
+
 
 async function processNewsTerms(newsContent) {
   const extractedTerms = await extractFinancialTerms(newsContent);

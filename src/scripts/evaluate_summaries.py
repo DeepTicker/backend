@@ -72,8 +72,8 @@ for news_id, level, summary, reference_source, has_reference in rows:
             WHERE news_id = %s AND level = %s
         """, (rouge1_f, rougeL_f, bleu_score, news_id, level))
 
-        tag = "🧠 기준 요약 기반" if has_reference else "📄 원문 proxy 평가"
-        print(f"✅ 뉴스 {news_id} [{level}] 평가 완료 {tag} → ROUGE-1: {rouge1_f}, BLEU: {bleu_score}")
+        tag = "기준 요약 기반" if has_reference else "원문 proxy 평가"
+        print(f"뉴스 {news_id} [{level}] 평가 완료 {tag} → ROUGE-1: {rouge1_f}, BLEU: {bleu_score}")
 
         # 평가 기준에 따라 품질 의심 여부 판단
         bleu_threshold = BLEU_THRESHOLDS.get(level, 0.01)
@@ -93,10 +93,10 @@ for news_id, level, summary, reference_source, has_reference in rows:
             if is_repetitive:
                 reasons.append("같은 단어 반복")
 
-            print(f"⚠️ 뉴스 {news_id} [{level}] 요약 품질 의심 → {' / '.join(reasons)}")
+            print(f"뉴스 {news_id} [{level}] 요약 품질 의심 → {' / '.join(reasons)}")
 
     except Exception as e:
-        print(f"❌ 뉴스 {news_id} [{level}] 평가 실패:", str(e))
+        print(f"뉴스 {news_id} [{level}] 평가 실패:", str(e))
 
 # 5. 마무리
 conn.commit()

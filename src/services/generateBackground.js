@@ -278,6 +278,7 @@ async function generateIntermediateStockBackground(representative) {
     }
 }
 
+const termCache = { used: false, html: '' };
 
 // 메인 함수: 카테고리와 레벨에 따라 적절한 배경지식 생성
 async function generateBackground(category, level, content, representative) {

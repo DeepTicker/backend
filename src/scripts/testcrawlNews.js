@@ -133,5 +133,36 @@ async function crawl() {
         break;
         }
     }
+    if (results.length > 0) {
+
+        results.reverse(); // 오래된 뉴스부터 ID 부여
+        for (const news of results) {
+          const insertQuery = `
+            INSERT INTO news_raw (id, title, content, press, reporter, url, date, image_url, image_desc)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (id) DO NOTHING;
+          `;
+          try {
+            await pool.query(insertQuery, [
+              id++,
+              news.title,
+              news.content,
+              news.press,
+              news.reporter,
+              news.url,
+              news.date,
+              news.image_url,
+              news.image_desc,
+            ]);
+          } catch (err) {
+            console.error(`❌ DB 삽입 실패 (${id - 1}):`, err.message);
+          }
+        }
+      }
     
+      console.log("✅ 전체 뉴스 삽입 완료");
+      await pool.end();
+
 }
+
+crawl();
