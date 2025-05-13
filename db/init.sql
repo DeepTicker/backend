@@ -147,9 +147,21 @@ CREATE TABLE news_summary (
     level summary_level NOT NULL,
     headline TEXT NOT NULL,
     summary TEXT NOT NULL,
+    rouge1 REAL,
+    rougeL REAL,
+    bleu REAL,
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (news_id, level)
 );
+
+-- 4.5. 뉴스 참고 요약
+CREATE TABLE news_reference_summary (
+    news_id INTEGER REFERENCES news_raw(id) ON DELETE CASCADE,
+    level summary_level NOT NULL,
+    reference TEXT NOT NULL,
+    PRIMARY KEY (news_id, level)
+);
+
 -- 5. 산업군 정보
 CREATE TABLE industry_info (
     industry_name TEXT PRIMARY KEY,

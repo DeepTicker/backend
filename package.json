@@ -4,8 +4,11 @@
     "init2:db": "node src/scripts/initDB.js",
     "seed:stocksfornews": "node src/scripts/insertNewsStockData.js",
     "crawl:news": "node src/scripts/crawlNews.js",
-    "start:newsScheduler": "node src/scripts/newsScheduler.js",
-    "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js"
+    "start:classify": "python src/scripts/classify_news.py",
+    "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js",
+    "start:evaluate": "python src/scripts/evaluate_summaries.py",
+    "start:resummarize": "node src/scripts/resummarizeBadSummaries.js",
+    "start:newsScheduler": "node src/scripts/newsScheduler2.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

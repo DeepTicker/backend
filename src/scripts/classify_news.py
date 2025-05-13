@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 import psycopg2
@@ -10,6 +11,7 @@ from model.classify_module import predict_categories_with_representatives, clean
 import joblib
 from dotenv import load_dotenv
 from datetime import datetime
+
 # .env에서 DB 설정 로드
 load_dotenv()
 
@@ -29,7 +31,6 @@ def load_unclassified_news(conn):
         SELECT DISTINCT news_id FROM news_classification
     )
     ORDER BY id
-    LIMIT 100
     """
     return pd.read_sql(query, conn)
 
@@ -44,15 +45,16 @@ def insert_classification(conn, news_id, category, representative):
         cur.execute(query, (news_id, category, representative, now))
 
 def main():
-    print(" 뉴스 분류 시작")
+    print("뉴스 분류 시작", flush=True)
 
     # DB 연결
     conn = psycopg2.connect(**DB_CONFIG)
 
     # 분류할 뉴스 로드
     df = load_unclassified_news(conn)
-    print(f" 총 {len(df)}건의 뉴스 로드됨")
+    print(f"총 {len(df)}건의 뉴스 로드됨", flush=True)
 
+    count = 0
     for _, row in df.iterrows():
         news_id = row['id']
         title = row['title']
@@ -65,9 +67,16 @@ def main():
             representative = pred['representative']
             insert_classification(conn, news_id, category, representative)
 
-    conn.commit()
+        conn.commit()
+        count += 1
+
+        print(f"{count}건 처리됨 (id={news_id})", flush=True)
+
+        # 1분에 15개 이하 처리 (4초 간격)
+        time.sleep(4)
+
     conn.close()
-    print(" 모든 분류 결과 저장 완료")
+    print("모든 분류 결과 저장 완료", flush=True)
 
 if __name__ == "__main__":
     main()

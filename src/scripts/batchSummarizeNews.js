@@ -8,6 +8,8 @@ const {
 } = require('../services/generateNewsSummaryService');
 const { generateAndSaveBackground } = require('../services/saveBackground');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * 특정 뉴스의 한줄 요약 생성
  * @param {Object} row - 뉴스 데이터
@@ -15,6 +17,7 @@ const { generateAndSaveBackground } = require('../services/saveBackground');
  */
 async function generateHeadline(row) {
   const prompt = generateHeadlinePrompt(row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
+  await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
 
@@ -26,6 +29,7 @@ async function generateHeadline(row) {
  */
 async function generateLevelSummary(row, level) {
   const prompt = generateSummaryPrompt(level, row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
+  await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
 
@@ -103,7 +107,6 @@ async function summarizeAllNews() {
       )
       GROUP BY nr.id, nr.content
       ORDER BY nr.id
-      LIMIT 10
     `;
 
     const { rows } = await pool.query(query);
