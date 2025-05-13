@@ -99,6 +99,11 @@ CREATE TABLE stock_recommendation (
     cluster_name TEXT,  
     recommended_date DATE NOT NULL
 );
+CREATE TABLE stock_catchphrases (
+    stock_id INT PRIMARY KEY,
+    phrase TEXT
+);
+
 
 ------------------NEWS-----------------------
 -- ENUM 타입 정의
