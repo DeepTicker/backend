@@ -34,30 +34,24 @@ async function getRecentThemeNews(themeName) {
 }
 
 // Gemini를 사용하여 테마 이슈 요약 생성
-async function generateThemeSummary(themeName, news, level = '중급') {
+async function generateThemeSummary(themeName, news) {
     console.log('=== generateThemeSummary 시작 ===');
-    console.log(`테마: ${themeName}, 레벨: ${level}`);
+    console.log(`테마: ${themeName}`);
     console.log(`입력된 뉴스 수: ${news.length}`);
-
-    let levelInstruction = '';
-    switch(level) {
-        case '초급':
-            levelInstruction = '초보자도 이해할 수 있도록 쉽게 설명해주세요.';
-            break;
-        case '고급':
-            levelInstruction = '전문가 수준의 심층적인 분석을 제공해주세요.';
-            break;
-        default:
-            levelInstruction = '일반 투자자가 이해할 수 있는 수준으로 설명해주세요.';
-    }
 
     const prompt = `
         ${themeName} 테마의 최근 20일간의 뉴스를 분석하여 가장 중요한 이슈 5가지를 추출해주세요.
-        ${levelInstruction}
-
+        일반 투자자가 이해할 수 있도록 쉽게 작성해주세요.
         각 이슈는 다음 형식으로 작성해주세요:
-        - 이슈 제목: 간단명료한 제목
-        - 이슈 설명: 1-2 문장으로 된 설명. 고등학교-대학생 수준의 설명.
+        [
+            {
+                "title": "이슈 제목",
+                "description": "이슈 설명 (한 문단)"
+            },
+            ...
+        ]
+
+        간결하고 명확하게 작성해주세요.
 
         분석할 뉴스:
         ${news.map(n => `- ${n.title}`).join('\n')}
@@ -69,51 +63,28 @@ async function generateThemeSummary(themeName, news, level = '중급') {
     console.log('=== Gemini API 응답 ===');
     console.log('원본 응답:', responseText);
 
-    const issues = [];
-    const lines = responseText.split('\n');
+    let issues;
+    try {
+        const cleanedText = responseText.trim()
+            .replace(/^```json/, '')
+            .replace(/^```/, '')
+            .replace(/```$/, '')
+            .trim();
 
-    let currentTitle = '';
-    let currentDescription = '';
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-
-        if (/이슈 제목[:：]/i.test(trimmed)) {
-            if (currentTitle && currentDescription) {
-                issues.push({
-                    title: currentTitle,
-                    description: currentDescription
-                });
-            }
-            currentTitle = trimmed.replace(/.*이슈 제목[:：]\s*/i, '');
-            currentDescription = '';
-        } else if (/이슈 설명[:：]/i.test(trimmed)) {
-            currentDescription = trimmed.replace(/.*이슈 설명[:：]\s*/i, '');
-        } else if (currentDescription && trimmed) {
-            currentDescription += ' ' + trimmed;
-        }
+        issues = JSON.parse(cleanedText);
+    } catch (err) {
+        console.error('❌ JSON 파싱 오류:', err);
+        throw new Error('JSON 파싱 실패 - generateThemeSummary');
     }
 
-    if (currentTitle && currentDescription) {
-        issues.push({
-            title: currentTitle,
-            description: currentDescription
-        });
-    }
-
-    if (issues.length === 0) {
-        throw new Error('No issues could be parsed from the response - generateNewsThemeIn.js');
+    if (!Array.isArray(issues) || issues.length === 0) {
+        throw new Error('파싱된 이슈가 없습니다 - generateThemeSummary');
     }
 
     const summaryResult = {
-        titles: [],
-        descriptions: []
+        titles: issues.map(i => i.title || ''),
+        descriptions: issues.map(i => i.description || '')
     };
-
-    issues.forEach((issue) => {
-        summaryResult.titles.push(issue.title);
-        summaryResult.descriptions.push(issue.description);
-    });
 
     return summaryResult;
 }
@@ -153,9 +124,9 @@ async function saveThemeIssues(themeName, titles, descriptions) {
 }
 
 // 테마 이슈 생성 및 저장
-async function generateAndSaveThemeIssues(newsId, level) {
+async function generateAndSaveThemeIssues(newsId) {
     console.log('=== generateAndSaveThemeIssues 시작 ===');
-    console.log(`newsId: ${newsId}, level: ${level}`);
+    console.log(`newsId: ${newsId}`);
 
     try {
         const newsInfo = await getNewsInfo(newsId);
@@ -170,7 +141,7 @@ async function generateAndSaveThemeIssues(newsId, level) {
             const recentNews = await getRecentThemeNews(newsInfo.representative);
             console.log(`${newsInfo.representative} 테마의 최근 뉴스 ${recentNews.length}개 발견`);
 
-            const summary = await generateThemeSummary(newsInfo.representative, recentNews, level);
+            const summary = await generateThemeSummary(newsInfo.representative, recentNews);
 
             if (!summary || !summary.titles || !summary.descriptions) {
                 throw new Error('요약 생성에 실패했습니다.');

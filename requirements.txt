@@ -7,3 +7,9 @@ schedule
 torch
 holidays
 google-generativeai
+torch
+transformers
+joblib
+numpy==1.25.2
+faiss-cpu==1.7.4
+python-dotenv

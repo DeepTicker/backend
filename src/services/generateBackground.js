@@ -217,46 +217,47 @@ async function generateIntermediateMacroBackground() {
 // 7. 개별 주식 중급 레벨의 주식 이슈 요약 생성
 async function generateIntermediateStockBackground(representative) {
     try {
-        // 먼저 representative가 주식 코드인지 확인
-        let query = `
-            SELECT stock_code, stock_name, summary_title, summary_detail, 
+        // 1. 먼저 tmp_stock에서 stock_code 가져오기
+        const stockQuery = `
+            SELECT stock_code, stock_name
+            FROM tmp_stock
+            WHERE stock_code = $1 OR stock_name = $1
+            LIMIT 1
+        `;
+        const stockResult = await pool.query(stockQuery, [representative]);
+
+        if (stockResult.rows.length === 0) {
+            console.log(`❗️tmp_stock에서 주식 정보를 찾을 수 없음: ${representative}`);
+            return null;
+        }
+
+        const { stock_code, stock_name } = stockResult.rows[0];
+        console.log(`✅ stock_code: ${stock_code}, stock_name: ${stock_name}`);
+
+        // 2. stock_issue에서 해당 stock_code 기준으로 이슈 조회
+        const issueQuery = `
+            SELECT summary_title, summary_detail, 
                    related_indicators, price_impact, summary_date
             FROM stock_issue
             WHERE stock_code = $1
             ORDER BY summary_date DESC
             LIMIT 1
         `;
-        
-        let result = await pool.query(query, [representative]);
-        
-        // 주식 코드로 찾지 못했다면 주식명으로 검색
-        if (result.rows.length === 0) {
-            query = `
-                SELECT stock_code, stock_name, summary_title, summary_detail, 
-                       related_indicators, price_impact, summary_date
-                FROM stock_issue
-                WHERE stock_name = $1
-                ORDER BY summary_date DESC
-                LIMIT 1
-            `;
-            
-            result = await pool.query(query, [representative]);
-        }
-        
-        if (result.rows.length === 0) {
-            console.log(`주식 이슈를 찾을 수 없음: ${representative}`);
+        const issueResult = await pool.query(issueQuery, [stock_code]);
+
+        if (issueResult.rows.length === 0) {
+            console.log(`❗️stock_issue에서 이슈를 찾을 수 없음: ${stock_code}`);
             return null;
         }
 
-        const issue = result.rows[0];
-        const stockName = issue.stock_name;
+        const issue = issueResult.rows[0];
         const titles = issue.summary_title;
         const descriptions = issue.summary_detail;
         const indicators = issue.related_indicators;
         const impacts = issue.price_impact;
 
         let html = `
-            <h5>${stockName} 최근 이슈</h5>
+            <h5>${stock_name} 최근 이슈</h5>
             <p><small>요약일자: ${new Date(issue.summary_date).toLocaleDateString()}</small></p>
         `;
 
@@ -277,6 +278,7 @@ async function generateIntermediateStockBackground(representative) {
         return null;
     }
 }
+
 
 const termCache = { used: false, html: '' };
 

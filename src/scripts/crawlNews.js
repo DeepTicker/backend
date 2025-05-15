@@ -114,6 +114,8 @@ async function crawl() {
             console.log(`🖼️ 이미지: ${image_url} / 설명: ${image_desc}`);
             console.log("🔎 이미지 태그 HTML:", $article("span.end_photo_org").html());
             await sleep(200);
+
+            if (results.length >= 10) break;
             } catch (e) {
             console.warn("❌ 내부 뉴스 파싱 오류:", e.message);
         }
