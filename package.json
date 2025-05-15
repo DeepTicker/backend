@@ -9,7 +9,8 @@
     "start:evaluate": "python src/scripts/evaluate_summaries.py",
     "start:getTerms": "node src/scripts/processNewsTerms.js",
     "start:resummarize": "node src/scripts/resummarizeBadSummaries.js",
-    "start:newsScheduler": "node src/scripts/newsScheduler2.js"
+    "start:newsScheduler": "node src/scripts/newsScheduler2.js",
+    "start:similarNews": "node src/scripts/processSimilarNews.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

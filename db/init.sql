@@ -118,6 +118,18 @@ CREATE TABLE tmp_stock (
     description TEXT
 );
 
+CREATE TABLE past_news (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL UNIQUE,
+    url TEXT,
+    press TEXT,
+    published_at TIMESTAMP,
+    reporter TEXT,
+    content TEXT
+);
+
+
+
 -- 2. 뉴스 원문
 CREATE TABLE news_raw (
     id SERIAL PRIMARY KEY,

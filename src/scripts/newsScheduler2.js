@@ -3,6 +3,7 @@ const { exec } = require('child_process');
 const dayjs = require('dayjs');
 const { Client } = require('pg');
 const dotenv = require('dotenv');
+const { spawn } = require('child_process');
 dotenv.config();
 
 // 로그 함수
@@ -26,6 +27,76 @@ function runCommand(command, label) {
             if (stdout) log(`📤 [OUTPUT] ${label}:\n${stdout}`);
             if (stderr) log(`⚠️ [STDERR] ${label}:\n${stderr}`, 'error');
             resolve();
+        });
+    });
+}
+
+// 🔍 요약 품질이 낮은 개수 조회
+async function countBadSummaries() {
+    return new Promise((resolve, reject) => {
+        const client = new Client({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT,
+        });
+
+        client.connect();
+
+        const query = `
+            SELECT COUNT(*) FROM news_summary
+            WHERE rouge1 IS NOT NULL AND (rouge1 < 0.2 OR rougeL < 0.2 OR bleu < 0.2);
+        `;
+
+        client.query(query, (err, result) => {
+            client.end();
+            if (err) {
+                log(`❗ PostgreSQL query error: ${err.message}`, 'error');
+                reject(err);
+            } else {
+                const count = parseInt(result.rows[0].count, 10);
+                resolve(count);
+            }
+        });
+    });
+}
+
+// 📰 뉴스 제목과 고급 요약문 가져오기
+async function getNewsForSimilarity() {
+    return new Promise((resolve, reject) => {
+        const client = new Client({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_NAME,
+            port: process.env.DB_PORT,
+        });
+
+        client.connect();
+
+        const query = `
+            SELECT nr.title, ns.summary
+            FROM news_raw nr
+            JOIN news_summary ns ON nr.id = ns.news_id
+            WHERE ns.level = '고급'
+            AND ns.rouge1 >= 0.2 AND ns.rougeL >= 0.2 AND ns.bleu >= 0.2
+            ORDER BY nr.id DESC
+            LIMIT 1000;
+        `;
+
+        client.query(query, (err, result) => {
+            client.end();
+            if (err) {
+                log(`❗ PostgreSQL query error: ${err.message}`, 'error');
+                reject(err);
+            } else {
+                const news = result.rows.map(row => ({
+                    title: row.title,
+                    summary: row.summary
+                }));
+                resolve(news);
+            }
         });
     });
 }
@@ -77,42 +148,15 @@ async function processNews() {
             }
         }
 
+        // 6. Extract representative news
+        log('➡️ Step 6: Starting representative news extraction');
+        await runCommand('npm run start:similarNews', 'Representative News Extraction');
+
         log('🎉 All summaries passed evaluation! Pipeline completed.');
 
     } catch (err) {
         log(`❗ Error in news pipeline: ${err.message}`, 'error');
     }
-}
-
-// 🔍 요약 품질이 낮은 개수 조회
-async function countBadSummaries() {
-    return new Promise((resolve, reject) => {
-        const client = new Client({
-            host: process.env.DB_HOST,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME,
-            port: process.env.DB_PORT,
-        });
-
-        client.connect();
-
-        const query = `
-            SELECT COUNT(*) FROM news_summary
-            WHERE rouge1 IS NOT NULL AND (rouge1 < 0.2 OR rougeL < 0.2 OR bleu < 0.2);
-        `;
-
-        client.query(query, (err, result) => {
-            client.end();
-            if (err) {
-                log(`❗ PostgreSQL query error: ${err.message}`, 'error');
-                reject(err);
-            } else {
-                const count = parseInt(result.rows[0].count, 10);
-                resolve(count);
-            }
-        });
-    });
 }
 
 // 매일 오전 9시에 실행
