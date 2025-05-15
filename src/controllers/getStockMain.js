@@ -4,7 +4,7 @@ exports.getStockMain = async (req, res) => {
   try {
     // 1. 거래량 상위 5개 stock_id 가져오기
     const topStocksResult = await pool.query(`
-      SELECT stock_id, name, volume
+      SELECT stock_id, name, volume, close
       FROM stock_data
       ORDER BY volume DESC
       LIMIT 5
@@ -13,7 +13,7 @@ exports.getStockMain = async (req, res) => {
     const predictionData = {};
 
     for (const row of topStocksResult.rows) {
-      const { stock_id, name, volume } = row;
+      const { stock_id, name, volume, close } = row;
 
       const predictionResult = await pool.query(
         `
@@ -28,6 +28,7 @@ exports.getStockMain = async (req, res) => {
       predictionData[stock_id] = {
         name,
         volume,
+        close,
         predictions: predictionResult.rows
       };
     }
