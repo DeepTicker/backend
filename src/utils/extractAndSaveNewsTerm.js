@@ -105,4 +105,9 @@ async function processNewsTerms(newsContent) {
   return { knownTerms: terms, unknownTerms: [] };
 }
 
-module.exports = { processNewsTerms,  extractFinancialTerms, checkTermsInDatabase};
+module.exports = {
+  processNewsTerms,
+  extractFinancialTerms,
+  checkTermsInDatabase,
+  extractTermsFromText
+};

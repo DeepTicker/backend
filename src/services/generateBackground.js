@@ -113,7 +113,11 @@ async function generateIntermediateIndustryBackground(industryName) {
     
     const result = await pool.query(query, [industryName]);
     if (result.rows.length === 0) {
-        return null;
+        const msg = `'${industryName}' 산업군의 최근 뉴스가 부족하여 정보를 제공할 수 없습니다.`;
+        return {
+            html: `<p class="message">${msg}</p>`,
+            message: msg
+        };
     }
 
     const issue = result.rows[0];
@@ -136,7 +140,10 @@ async function generateIntermediateIndustryBackground(industryName) {
         `;
     }
 
-    return html;
+    return {
+        html,
+        message: null
+    };
 }
 
 //5.테마 중급 레벨의 테마 이슈 요약 생성
@@ -151,7 +158,11 @@ async function generateIntermediateThemeBackground(themeName) {
     
     const result = await pool.query(query, [themeName]);
     if (result.rows.length === 0) {
-        return null;
+        const msg = `⚠ '${themeName}' 테마는 관련 뉴스가 부족하여 정보를 제공할 수 없습니다.`;
+        return {
+            html: `<p class="message">${msg}</p>`,
+            message: msg
+        };
     }
 
     const issue = result.rows[0];
@@ -172,7 +183,10 @@ async function generateIntermediateThemeBackground(themeName) {
         `;
     }
 
-    return html;
+    return {
+        html,
+        message: null
+    };
 }
 
 // 6. 전반적 중급
@@ -286,6 +300,7 @@ const termCache = { used: false, html: '' };
 async function generateBackground(category, level, content, representative) {
     console.log('배경지식 생성 시작:', { category, level, representative });
     let background = '';
+    let message = null;
 
     if (level === '초급') {
         if (!termCache.used) {
@@ -315,7 +330,8 @@ async function generateBackground(category, level, content, representative) {
         console.log('산업군 중급 이슈 요약 생성');
         const industryIssues = await generateIntermediateIndustryBackground(representative);
         if (industryIssues) {
-            background += industryIssues;
+            background += industryIssues.html;
+            message = industryIssues.message;
             console.log('산업군 이슈 요약 생성 완료');
         }
     }
@@ -325,7 +341,7 @@ async function generateBackground(category, level, content, representative) {
         console.log('테마 중급 이슈 요약 생성');
         const themeIssues = await generateIntermediateThemeBackground(representative);
         if (themeIssues) {
-            background += themeIssues;
+            background += themeIssues.html;
             console.log('테마 이슈 요약 생성 완료');
         }
     }
@@ -352,7 +368,7 @@ async function generateBackground(category, level, content, representative) {
     }
 
     console.log('최종 배경지식:', background);
-    return background;
+    return { background, message };
 }
 
 module.exports = {

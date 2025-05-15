@@ -11,15 +11,39 @@ const { genAI, model } = require('../../config/gemini');
  * @returns {Promise<string>} - 요약 결과
  */
 async function geminiSummary(prompt, content) {
-  const fullPrompt = `${prompt.trim()}\n\n${content.trim().slice(0, 3000)}`;
+  return withRetry(async () => {
+    const result = await model.generateContent([prompt, content]);
+    const response = await result.response;
+    if (!response || typeof response.text !== 'function') {
+      throw new Error("geminiSummary 응답 파싱 실패");
+    }
+    return response.text();
+  });
+}
+
+async function withRetry(fn, retries = 3, delay = 5000) {
   try {
-    const result = await model.generateContent(fullPrompt);
-    return result.response.text().trim();
+    return await fn();
   } catch (error) {
-    console.error("Gemini API 호출 오류:", error.message);
+    if (error.status === 429 && retries > 0) {
+      let delayMs = delay;
+      try {
+        const retryInfo = error.errorDetails?.find(detail => detail['@type']?.includes('RetryInfo'));
+        if (retryInfo?.retryDelay) {
+          const seconds = parseInt(retryInfo.retryDelay.replace(/[^0-9]/g, ''));
+          if (!isNaN(seconds)) delayMs = seconds * 1000;
+        }
+      } catch {}
+
+      console.warn(`⏳ 429 재시도: ${delayMs / 1000}s 후 (${retries}회 남음)`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      return withRetry(fn, retries - 1, delay);
+    }
+
     throw error;
   }
 }
+
 
 /**
  * 카테고리/대표 키워드 기반 프롬프트 생성 (한줄 요약용)

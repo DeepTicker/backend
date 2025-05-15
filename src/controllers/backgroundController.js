@@ -7,14 +7,14 @@ async function generateBackgroundContent(req, res) {
         
         console.log('배경지식 생성 요청:', { category, level, representative });
         
-        const background = await generateBackground(
+        const { background, message } = await generateBackground(
             category,
             level,
             content,
             representative
         );
 
-        res.json({ background });
+        res.json({ background, message });
     } catch (error) {
         console.error('Error generating background:', error);
         res.status(500).json({ error: error.message });

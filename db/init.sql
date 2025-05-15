@@ -128,8 +128,6 @@ CREATE TABLE past_news (
     content TEXT
 );
 
-
-
 -- 2. 뉴스 원문
 CREATE TABLE news_raw (
     id SERIAL PRIMARY KEY,
@@ -167,13 +165,14 @@ CREATE TABLE news_summary (
 );
 
 -- 4.5. 뉴스 참고 요약
-CREATE TABLE news_terms (
+CREATE TABLE news_reference_summary (
   news_id INTEGER REFERENCES news_raw(id),
-  term TEXT,
-  category TEXT,
-  extracted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (news_id, term)
+  level summary_level NOT NULL,
+  reference TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (news_id, level)
 );
+
 -- 4.6. 뉴스 용어 추출 : 각 뉴스별로 어떤 용어가 있는지 (이미 NER한 경우)
 CREATE TABLE news_terms (
   news_id INTEGER REFERENCES news_raw(id),

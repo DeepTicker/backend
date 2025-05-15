@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  */
 async function generateHeadline(row) {
   const prompt = generateHeadlinePrompt(row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
-  await sleep(4000);
+  //await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
 
@@ -29,7 +29,7 @@ async function generateHeadline(row) {
  */
 async function generateLevelSummary(row, level) {
   const prompt = generateSummaryPrompt(level, row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
-  await sleep(4000);
+  //await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
 

@@ -8,13 +8,31 @@ const csv = require("csv-parser");
 const pool = require("../../config/db");
 const { model } = require("../../config/gemini");
 
-// 📌 Gemini API 호출
-async function generateDescription(prompt) {
+// 📌 Gemini API 호출 : 429에러시 대기 후 재시도도
+async function generateDescription(prompt, retries = 3) {
   try {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
   } catch (error) {
+    if (error.status === 429 && retries > 0) {
+      // Google API가 retryDelay(대기시간)를 알려주는 경우 파싱
+      let delayMs = 5000; // 기본 5초 대기
+      try {
+        const retryInfo = error.errorDetails?.find(detail => detail['@type']?.includes('RetryInfo'));
+        if (retryInfo && retryInfo.retryDelay) {
+          // retryDelay는 ISO 8601 duration (예: "49s")
+          const seconds = parseInt(retryInfo.retryDelay.replace(/[^0-9]/g, ''));
+          if (!isNaN(seconds)) delayMs = seconds * 1000;
+        }
+      } catch {
+        // 무시하고 기본 delayMs 사용
+      }
+
+      console.warn(`429 Too Many Requests: ${delayMs / 1000}초 후 재시도합니다... (${retries}회 남음)`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      return generateDescription(prompt, retries - 1);
+    }
     console.error('Gemini API 호출 오류:', error);
     throw error;
   }

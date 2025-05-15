@@ -16,7 +16,7 @@ const baseURL = "https://finance.naver.com/news/mainnews.naver";
 
 async function crawl() {
   const today = dayjs(); // 오늘
-  const endDate = today.subtract(0, "day"); // 2일 전
+  const endDate = today.subtract(2, "day"); // 2일 전
 
   let currentDate = today;
   let page = 1;
@@ -57,7 +57,8 @@ async function crawl() {
 
             if (titleSet.has(subject)) {
                 console.log(`🛑 중복 뉴스 발견: ${subject} → 크롤링 종료`);
-                break;
+                continue;
+                //break;
             }
 
             const article_id = link.match(/article_id=(\d+)/)?.[1];
@@ -115,7 +116,7 @@ async function crawl() {
             console.log("🔎 이미지 태그 HTML:", $article("span.end_photo_org").html());
             await sleep(200);
 
-            if (results.length >= 10) break;
+            //if (results.length >= 10) break;
             } catch (e) {
             console.warn("❌ 내부 뉴스 파싱 오류:", e.message);
         }

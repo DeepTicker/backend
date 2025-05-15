@@ -205,15 +205,24 @@ async function getNewsDetail(req, res) {
         for (const classification of rawNews.classifications) {
             const { category, representative } = classification;
             let background = null;
+            let message = null;
 
             try {
                 if (level === '중급') {
                     switch (category) {
                         case '산업군':
-                            background = await generateIntermediateIndustryBackground(representative);
+                            const industryResult = await generateIntermediateIndustryBackground(representative);
+                            if (industryResult) {
+                                background = industryResult.html;
+                                message = industryResult.message;
+                            }
                             break;
                         case '테마':
-                            background = await generateIntermediateThemeBackground(representative);
+                            const themeResult = await generateIntermediateThemeBackground(representative);
+                            if (themeResult) {
+                                background = themeResult.html;
+                                message = themeResult.message;
+                            }
                             break;
                         case '전반적':
                             background = await generateIntermediateMacroBackground();
@@ -251,7 +260,12 @@ async function getNewsDetail(req, res) {
                 }
 
                 if (background) {
-                    backgrounds.push({ category, representative, background });
+                    backgrounds.push({ 
+                        category, 
+                        representative, 
+                        background,
+                        message 
+                    });
                 }
             } catch (e) {
                 console.error(`⚠️ ${category} 배경지식 오류:`, e);
@@ -338,14 +352,23 @@ async function generateNewsSummary(req, res) {
         for (const classification of classifications) {
             const { category, representative } = classification;
             let background = null;
+            let message = null;
 
             try {
                 switch (category) {
                     case '산업군':
-                        background = await generateIntermediateIndustryBackground(representative);
+                        const industryResult = await generateIntermediateIndustryBackground(representative);
+                        if (industryResult) {
+                            background = industryResult.html;
+                            message = industryResult.message;
+                        }
                         break;
                     case '테마':
-                        background = await generateIntermediateThemeBackground(representative);
+                        const themeResult = await generateIntermediateThemeBackground(representative);
+                        if (themeResult) {
+                            background = themeResult.html;
+                            message = themeResult.message;
+                        }
                         break;
                     case '전반적':
                         background = await generateIntermediateMacroBackground();
@@ -362,7 +385,8 @@ async function generateNewsSummary(req, res) {
                     backgrounds.push({
                         category,
                         representative,
-                        background
+                        background,
+                        message
                     });
                 }
             } catch (error) {
