@@ -7,7 +7,9 @@ const {
     generateIntermediateStockBackground,
     generateBasicTermBackground,
     generateBasicIndustryBackground,
-    generateBasicThemeBackground
+    generateBasicThemeBackground,
+    generateAdvancedIndustryBackground,
+    generateAdvancedStockBackground
 } = require('../services/generateBackground');
 const { model } = require('../../config/gemini');
 
@@ -206,9 +208,47 @@ async function getNewsDetail(req, res) {
             const { category, representative } = classification;
             let background = null;
             let message = null;
+            let advancedData = null;
 
             try {
-                if (level === '중급') {
+                if (level === '고급') {
+                    if (category === '개별주' && representative) {
+                        const stockResult = await generateAdvancedStockBackground(
+                            representative,
+                            rawNews.date,
+                            rawNews.content
+                        );
+                        if (stockResult) {
+                            background = stockResult.html;
+                            message = stockResult.message;
+                            advancedData = {
+                                stockData: stockResult.stockData,
+                                gptAnalysis: stockResult.gptAnalysis
+                            };
+                        }
+                    } else {
+                        // 산업군이나 다른 카테고리는 중급 레벨로 처리
+                        switch (category) {
+                            case '산업군':
+                                const industryResult = await generateIntermediateIndustryBackground(representative);
+                                if (industryResult) {
+                                    background = industryResult.html;
+                                    message = industryResult.message;
+                                }
+                                break;
+                            case '테마':
+                                const themeResult = await generateIntermediateThemeBackground(representative);
+                                if (themeResult) {
+                                    background = themeResult.html;
+                                    message = themeResult.message;
+                                }
+                                break;
+                            case '전반적':
+                                background = await generateIntermediateMacroBackground();
+                                break;
+                        }
+                    }
+                } else if (level === '중급') {
                     switch (category) {
                         case '산업군':
                             const industryResult = await generateIntermediateIndustryBackground(representative);
@@ -264,7 +304,8 @@ async function getNewsDetail(req, res) {
                         category, 
                         representative, 
                         background,
-                        message 
+                        message,
+                        advancedData
                     });
                 }
             } catch (e) {
@@ -353,32 +394,95 @@ async function generateNewsSummary(req, res) {
             const { category, representative } = classification;
             let background = null;
             let message = null;
+            let advancedData = null;
 
             try {
-                switch (category) {
-                    case '산업군':
-                        const industryResult = await generateIntermediateIndustryBackground(representative);
-                        if (industryResult) {
-                            background = industryResult.html;
-                            message = industryResult.message;
+                if (level === '고급') {
+                    if (category === '개별주' && representative) {
+                        const stockResult = await generateAdvancedStockBackground(
+                            representative,
+                            rows[0].date,
+                            rows[0].content
+                        );
+                        if (stockResult) {
+                            background = stockResult.html;
+                            message = stockResult.message;
+                            advancedData = {
+                                stockData: stockResult.stockData,
+                                gptAnalysis: stockResult.gptAnalysis
+                            };
                         }
-                        break;
-                    case '테마':
-                        const themeResult = await generateIntermediateThemeBackground(representative);
-                        if (themeResult) {
-                            background = themeResult.html;
-                            message = themeResult.message;
+                    } else {
+                        // 산업군이나 다른 카테고리는 중급 레벨로 처리
+                        switch (category) {
+                            case '산업군':
+                                const industryResult = await generateIntermediateIndustryBackground(representative);
+                                if (industryResult) {
+                                    background = industryResult.html;
+                                    message = industryResult.message;
+                                }
+                                break;
+                            case '테마':
+                                const themeResult = await generateIntermediateThemeBackground(representative);
+                                if (themeResult) {
+                                    background = themeResult.html;
+                                    message = themeResult.message;
+                                }
+                                break;
+                            case '전반적':
+                                background = await generateIntermediateMacroBackground();
+                                break;
                         }
-                        break;
-                    case '전반적':
-                        background = await generateIntermediateMacroBackground();
-                        break;
-                    case '개별주':
-                        background = await generateIntermediateStockBackground(representative);
-                        break;
-                    case '그 외':
-                        // 그 외 카테고리는 배경지식 없음
-                        break;
+                    }
+                } else if (level === '중급') {
+                    switch (category) {
+                        case '산업군':
+                            const industryResult = await generateIntermediateIndustryBackground(representative);
+                            if (industryResult) {
+                                background = industryResult.html;
+                                message = industryResult.message;
+                            }
+                            break;
+                        case '테마':
+                            const themeResult = await generateIntermediateThemeBackground(representative);
+                            if (themeResult) {
+                                background = themeResult.html;
+                                message = themeResult.message;
+                            }
+                            break;
+                        case '전반적':
+                            background = await generateIntermediateMacroBackground();
+                            break;
+                        case '개별주':
+                            background = await generateIntermediateStockBackground(representative);
+                            break;
+                    }
+                } else if (level === '초급') {
+                    if (!termCache.used) {
+                        termCache.html = await generateBasicTermBackground(content);
+                        termCache.used = true;
+                    }
+        
+                    // ✅ 용어 설명은 한 번만 맨 앞에 따로 push
+                    if (!hasAppendedTerm && termCache.html) {
+                        backgrounds.push({
+                            category: '용어 설명',
+                            representative: '',
+                            background: termCache.html
+                        });
+                        hasAppendedTerm = true;
+                    }
+        
+                    if (category === '산업군') {
+                        const ind = await generateBasicIndustryBackground(representative);
+                        background = ind?.html || '';
+                    } else if (category === '테마') {
+                        const th = await generateBasicThemeBackground(representative);
+                        background = th?.html || '';
+                    } else {
+                        // 그 외는 용어 설명으로 퉁침
+                        background = null;
+                    }
                 }
 
                 if (background) {
@@ -386,7 +490,8 @@ async function generateNewsSummary(req, res) {
                         category,
                         representative,
                         background,
-                        message
+                        message,
+                        advancedData
                     });
                 }
             } catch (error) {

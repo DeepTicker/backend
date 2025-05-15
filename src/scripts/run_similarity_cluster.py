@@ -16,7 +16,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 query = sys.argv[1]
 top_k = 20
 window = 7
-cluster_k = 1
+cluster_k = 3
 
 # Step 2. 임베딩 + FAISS 로드
 model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")

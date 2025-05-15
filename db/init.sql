@@ -118,6 +118,22 @@ CREATE TABLE tmp_stock (
     description TEXT
 );
 
+-- 2. KRX+코스피, 코스닥닥 15년 데이터
+CREATE TABLE krx_inv_15y_data (
+    date DATE NOT NULL,
+    market TEXT,               
+    ticker TEXT NOT NULL,
+    open INTEGER,
+    high INTEGER,
+    low INTEGER,
+    close INTEGER,
+    volume BIGINT,
+    trade_value BIGINT,
+    change_rate REAL,
+    PRIMARY KEY (date, ticker)
+);
+
+
 CREATE TABLE past_news (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL UNIQUE,
@@ -178,6 +194,20 @@ CREATE TABLE news_terms (
   news_id INTEGER REFERENCES news_raw(id),
   term TEXT,
   PRIMARY KEY (news_id, term)
+);
+
+
+CREATE TABLE similar_news_analysis (
+        id SERIAL PRIMARY KEY,
+        news_id INTEGER REFERENCES news_raw(id),
+        similar_news_id INTEGER REFERENCES news_raw(id),
+        past_date DATE,
+        past_title TEXT,
+        stock_code VARCHAR(20),
+        stock_name TEXT,
+        price_changes JSONB,
+        gpt_analysis TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. 산업군 정보
