@@ -7,3 +7,4 @@ schedule
 torch
 holidays
 google-generativeai
+finance-datareader
