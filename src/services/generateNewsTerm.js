@@ -7,9 +7,10 @@ const { crawlBokDictionary, simplifyExplanation, saveNewTerm, generateExplanatio
 
 async function processNewsTerms(newsContent) {
   const extractedTerms = await extractFinancialTerms(newsContent);
-  const { knownTerms, unknownTerms } = await checkTermsInDatabase(extractedTerms);
+  const { knownTerms, unknownTerms } = await checkTermsInDatabase(extractedTerms.map(t => t.term));
 
-  for (const term of unknownTerms) {
+  for (const termObj of unknownTerms) {
+    const term = typeof termObj === 'string' ? termObj : termObj.term;
     let original = await crawlBokDictionary(term);
     if (!original) original = await generateExplanationWithLLM(term);
     if (!original) continue;
@@ -19,7 +20,7 @@ async function processNewsTerms(newsContent) {
     await saveNewTerm(term, simplified, original, category);
   }
 
-  return await checkTermsInDatabase(extractedTerms);
+  return await checkTermsInDatabase(extractedTerms.map(t => t.term));
 }
 
 // news_raw 테이블에서 뉴스 불러와 전체 처리
