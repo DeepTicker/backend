@@ -1,6 +1,7 @@
 //npm install axios cheerio dayjs 이거 설치해야함!
 //npm install chardet
 
+//npm install axios cheerio dayjs
 
 require("dotenv").config();
 

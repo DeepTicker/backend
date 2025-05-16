@@ -153,28 +153,28 @@ def upload_excel_to_db(excel_path):
     cur.execute("TRUNCATE TABLE stock_recommendation;")
     print("⚠️ 기존 데이터가 비워졌습니다.")
 
-    # 3. stock_id 반환 함수
-    def get_stock_id_by_code(code):
+    def get_stock_id_by_code_and_date(code, date):
         if pd.isna(code):
             return None
-        cur.execute("SELECT stock_id FROM stock_data WHERE code = %s", (str(code),))
+        cur.execute("SELECT stock_id FROM stock_data WHERE code = %s AND date = %s", (str(code), date))
         result = cur.fetchone()
         return result[0] if result else None
-    def get_stock_id_by_name(name):
+
+    def get_stock_id_by_name_and_date(name, date):
         if pd.isna(name):
             return None
-        cur.execute("SELECT stock_id FROM stock_data WHERE name = %s", (name,))
+        cur.execute("SELECT stock_id FROM stock_data WHERE name = %s AND date = %s", (name, date))
         result = cur.fetchone()
         return result[0] if result else None
 
     # 4. 데이터 삽입
     for _, row in df.iterrows():
-        stock_code = row["종목코드"]
-        similar_1 = row["similar_1"]
-        similar_2 = row["similar_2"]
-        similar_3 = row["similar_3"]
-
-        stock_id = get_stock_id_by_code(stock_code)
+        stock_code = row["기준종목코드"]
+        similar_1 = row["similarity_stock_1_name"]
+        similar_2 = row["similarity_stock_2_name"]
+        similar_3 = row["similarity_stock_3_name"]
+        
+        stock_id = get_stock_id_by_code(stock_code,date)
         sim_id_1 = get_stock_id_by_name(similar_1)
         sim_id_2 = get_stock_id_by_name(similar_2)
         sim_id_3 = get_stock_id_by_name(similar_3)
@@ -192,9 +192,9 @@ def upload_excel_to_db(excel_path):
                 sim_id_2,
                 sim_id_3,
                 row["MarCap"],
-                row["cluster"],
-                row["cluster_name"],
-                row["기준일"]
+                row["기준클러스터"],
+                row["기준태그"],
+                '2025-05-16'  
             ))
 
     conn.commit()

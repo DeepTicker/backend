@@ -5,8 +5,8 @@
     "seed:stocks": "node src/scripts/insert_stock_theme.js",
     "crawl:news": "node src/scripts/crawlNews.js",
     "classify:news": "node src/scripts/classifyNewsBatch.js",
-    "start:newsScheduler" : "node src/scripts/newsScheduler.js",
-    "start:geminiSummarize" : "node src/scripts/batchSummarizeNews.js"
+    "start:newsScheduler": "node src/scripts/newsScheduler.js",
+    "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

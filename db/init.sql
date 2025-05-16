@@ -65,8 +65,9 @@ CREATE TABLE stock_close_sequence_scaled (
 );
 
 CREATE TABLE stock_scaler_info (
-    close_min DOUBLE PRECISION NOT NULL,  -- 종가의 최소값
-    close_max DOUBLE PRECISION NOT NULL   -- 종가의 최대값
+    stock_id TEXT PRIMARY KEY,
+    close_min DOUBLE PRECISION NOT NULL,
+    close_max DOUBLE PRECISION NOT NULL
 );
 
 -- CREATE TABLE stock_prediction (
@@ -99,6 +100,11 @@ CREATE TABLE stock_recommendation (
     cluster_name TEXT,  
     recommended_date DATE NOT NULL
 );
+CREATE TABLE stock_catchphrases (
+    stock_id INT PRIMARY KEY,
+    phrase TEXT
+);
+
 
 ------------------NEWS-----------------------
 -- ENUM 타입 정의

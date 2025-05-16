@@ -20,32 +20,33 @@ def connect_db():
 
 def upload_excel_to_db(excel_path):
     df = pd.read_excel(excel_path)
+    print(df.head())  # 데이터 확인용
 
-    # 컬럼명 확인
     expected_columns = [
         "Date", "Code", "Name", "MarCap", "Open", "High", "Low", "Close", "Volume", "Change"
     ]
     if not all(col in df.columns for col in expected_columns):
         raise ValueError(f"Excel 파일에 다음 컬럼이 있어야 합니다: {expected_columns}")
 
-    # NaN → None
     df = df.where(pd.notnull(df), None)
-
-    # 날짜 포맷 맞추기
-    df['date'] = pd.to_datetime(df['Date']).dt.date
-
+    df["Date"] = pd.to_datetime(df["Date"]).dt.date
     records = df[expected_columns].values.tolist()
 
     insert_sql = """
         INSERT INTO stock_data (date, code, name, market_cap, open, high, low, close, volume, change)
         VALUES %s
+        ON CONFLICT (code, name, date) DO NOTHING
     """
 
     conn = connect_db()
     with conn:
         with conn.cursor() as cur:
+            # 인덱스 생성 (중복 제거용)
+            cur.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_unique ON stock_data (code, name, date);
+            """)
             execute_values(cur, insert_sql, records)
-            print(f"{len(records)}개 레코드를 삽입했습니다.")
+            print(f"{len(records)}개 중 중복 제외 후 삽입 완료.")
 
 if __name__ == "__main__":
     excel_path = "../data/krx_stockdata.xlsx"  # 엑셀 파일 경로 수정
