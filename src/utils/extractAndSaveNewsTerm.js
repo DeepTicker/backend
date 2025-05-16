@@ -21,7 +21,8 @@ async function checkTermsInDatabase(terms) {
   const knownTerms = [];
   const unknownTerms = [];
   
-  for (const term of terms) {
+  for (const termObj of terms) {
+    const term = typeof termObj === 'string' ? termObj : termObj.term;
     const result = await pool.query(
       'SELECT * FROM financial_terms WHERE term = $1',
       [term]
@@ -30,7 +31,7 @@ async function checkTermsInDatabase(terms) {
     if (result.rows.length > 0) {
       knownTerms.push(result.rows[0]);
     } else {
-      unknownTerms.push(term);
+      unknownTerms.push(termObj);
     }
   }
   
