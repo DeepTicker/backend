@@ -118,6 +118,19 @@ CREATE TABLE tmp_stock (
     description TEXT
 );
 
+
+CREATE TABLE news_sentiment (
+    id SERIAL PRIMARY KEY,
+    news_id INTEGER NOT NULL REFERENCES news_raw(id),
+    stock_code VARCHAR(6) NOT NULL REFERENCES tmp_stock(stock_code),
+    sentiment CHAR(1) NOT NULL CHECK (sentiment IN ('+', '-', '0')),
+    analyzed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sentiment_counts JSONB NOT NULL DEFAULT '{"+": 0, "-": 0, "0": 0}',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(news_id, stock_code)
+);
+
 -- 2. KRX+코스피, 코스닥닥 15년 데이터
 CREATE TABLE krx_inv_15y_data (
     date DATE NOT NULL,
