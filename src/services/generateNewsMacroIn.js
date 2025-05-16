@@ -39,98 +39,56 @@ async function generateMacroSummary(news, currentNewsId = null) {
     }
 
     const prompt = `
-        최근 20일간의 경제/시장 뉴스를 분석하여 가장 중요한 이슈 5가지를 추출해주세요.
-        일반 투자자가 이해할 수 있는 수준으로 설명해주세요.
-        
-        ${currentNewsInfo}
-        
-        반드시 다음 형식으로 작성해주세요:
-        
-        이슈 1:
-        - 이슈 제목: [제목]
-        - 이슈 설명: [설명]
-        - 관련 지표: [지표]
-        - 시장 영향: [영향]
-        
-        이슈 2:
-        - 이슈 제목: [제목]
-        - 이슈 설명: [설명]
-        - 관련 지표: [지표]
-        - 시장 영향: [영향]
-        
-        (이하 이슈 3, 4, 5도 동일한 형식으로 작성)
-        
-        분석할 뉴스:
-        ${news.map(n => `- ${n.title} (${n.date})`).join('\n')}
+    최근 20일간의 경제/시장 뉴스를 기반으로 가장 중요한 이슈 5가지를 다음과 같은 JSON 배열로 정리해줘.
+
+    [
+    {
+        "title": "이슈 제목",
+        "description": "이슈에 대한 상세 설명",
+        "indicators": ["관련 경제 지표 1", "관련 경제 지표 2"],
+        "impact": "해당 이슈가 시장에 미치는 영향"
+    },
+    ...
+    ]
+
+    일반 투자자가 이해할 수 있도록 쉽게 작성해줘.
+
+    분석할 뉴스 목록:
+    ${news.map(n => `- ${n.title} (${n.date})`).join('\n')}
+    ${currentNewsInfo}
     `;
+
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
-    console.log('Gemini 응답:', responseText); // 디버깅을 위한 로그 추가
-    
-    // 응답 파싱
-    const issues = [];
-    const lines = responseText.split('\n');
-    
-    let currentIssue = null;
-    
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) continue;
+    console.log('Gemini 응답:', responseText);
 
-        if (trimmedLine.startsWith('이슈')) {
-            if (currentIssue && Object.keys(currentIssue).length > 0) {
-                issues.push(currentIssue);
-            }
-            currentIssue = {
-                title: '',
-                description: '',
-                indicators: '',
-                impact: ''
-            };
-        } else if (trimmedLine.startsWith('- 이슈 제목:')) {
-            currentIssue.title = trimmedLine.replace('- 이슈 제목:', '').trim();
-        } else if (trimmedLine.startsWith('- 이슈 설명:')) {
-            currentIssue.description = trimmedLine.replace('- 이슈 설명:', '').trim();
-        } else if (trimmedLine.startsWith('- 관련 지표:')) {
-            currentIssue.indicators = trimmedLine.replace('- 관련 지표:', '').trim();
-        } else if (trimmedLine.startsWith('- 시장 영향:')) {
-            currentIssue.impact = trimmedLine.replace('- 시장 영향:', '').trim();
-        } else if (currentIssue && currentIssue.description) {
-            // 설명이 여러 줄인 경우
-            currentIssue.description += ' ' + trimmedLine;
-        }
-    }
-    
-    if (currentIssue && Object.keys(currentIssue).length > 0) {
-        issues.push(currentIssue);
+    let issues;
+    try {
+        // ✅ JSON 응답 파싱
+        const cleanedText = responseText.trim()
+        .replace(/^```json/, '')
+        .replace(/^```/, '')
+        .replace(/```$/, '')
+        .trim();
+
+        issues = JSON.parse(cleanedText);
+    } catch (err) {
+        console.error('❌ JSON 파싱 오류:', err);
+        throw new Error('응답을 JSON으로 파싱하지 못했습니다.');
     }
 
-    console.log('파싱된 이슈:', issues); // 디버깅을 위한 로그 추가
-
-    if (issues.length === 0) {
+    if (!Array.isArray(issues) || issues.length === 0) {
         throw new Error('No valid issues could be parsed from the response');
     }
 
+    // ✅ summaryResult에 필요한 필드 수집
     const summaryResult = {
-        titles: [],
-        descriptions: [],
-        indicators: [],
-        impacts: []
+        titles: issues.map(i => i.title || ''),
+        descriptions: issues.map(i => i.description || ''),
+        indicators: issues.map(i => Array.isArray(i.indicators) ? i.indicators.join(', ') : i.indicators || ''),
+        impacts: issues.map(i => i.impact || '')
     };
-
-    issues.forEach((issue) => {
-        if (issue.title && issue.description) {
-            summaryResult.titles.push(issue.title);
-            summaryResult.descriptions.push(issue.description);
-            summaryResult.indicators.push(issue.indicators || '');
-            summaryResult.impacts.push(issue.impact || '');
-        }
-    });
-
-    if (summaryResult.titles.length === 0) {
-        throw new Error('No valid issues could be parsed from the response');
-    }
 
     return summaryResult;
 }

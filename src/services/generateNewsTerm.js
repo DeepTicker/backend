@@ -1,35 +1,39 @@
-// service/generateNewsTerm.js
+// src/services/generateNewsTerm.js
 
-const { extractFinancialTerms, checkTermsInDatabase } = require('../utils/extractNewsTerm');
-const { crawlBokDictionary, simplifyExplanation, saveNewTerm } = require('../utils/addNewTerm');
+const pool = require('../../config/db');
+const { extractFinancialTerms, checkTermsInDatabase } = require('../utils/extractAndSaveNewsTerm');
+const { crawlBokDictionary, simplifyExplanation, saveNewTerm, generateExplanationWithLLM, classifyTerm } = require('../utils/addNewTerm');
 
-// 메인 함수: 뉴스 기사에서 용어 추출 및 처리
+
 async function processNewsTerms(newsContent) {
-    // 1. 용어 추출
-    const extractedTerms = await extractFinancialTerms(newsContent);
-    
-    // 2. DB에 있는 용어와 없는 용어 구분
-    const { knownTerms, unknownTerms } = await checkTermsInDatabase(extractedTerms);
-    
-    // 3. 없는 용어는 한국은행 사전에서 검색하여 저장
-    for (const term of unknownTerms) {
-      const originalExplanation = await crawlBokDictionary(term);
-      
-      if (originalExplanation) {
-        // 4. 설명을 중학생 수준으로 단순화
-        const simplifiedExplanation = await simplifyExplanation(originalExplanation);
-        
-        // 5. DB에 저장
-        await saveNewTerm(term, simplifiedExplanation);
-      }
-    }
-    
-    // 6. 모든 용어 정보 반환 (이미 있던 것 + 새로 추가된 것)
-    return await checkTermsInDatabase(extractedTerms);
+  const extractedTerms = await extractFinancialTerms(newsContent);
+  const { knownTerms, unknownTerms } = await checkTermsInDatabase(extractedTerms.map(t => t.term));
+
+  for (const termObj of unknownTerms) {
+    const term = typeof termObj === 'string' ? termObj : termObj.term;
+    let original = await crawlBokDictionary(term);
+    if (!original) original = await generateExplanationWithLLM(term);
+    if (!original) continue;
+
+    const simplified = await simplifyExplanation(original);
+    const category = classifyTerm(term, original);
+    await saveNewTerm(term, simplified, original, category);
   }
-  
-  module.exports = {
-    processNewsTerms,
-    extractFinancialTerms,
-    checkTermsInDatabase
-  };
+
+  return await checkTermsInDatabase(extractedTerms.map(t => t.term));
+}
+
+// news_raw 테이블에서 뉴스 불러와 전체 처리
+async function processAllNewsFromRawTable() {
+  const result = await pool.query('SELECT id, content FROM news_raw');
+  for (const row of result.rows) {
+    console.log(`\n📰 Processing news ID ${row.id}...`);
+    const terms = await processNewsTerms(row.content);
+    console.dir({ id: row.id, ...terms }, { depth: null });
+  }
+}
+
+module.exports = {
+  processNewsTerms,
+  processAllNewsFromRawTable
+};

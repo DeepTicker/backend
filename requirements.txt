@@ -7,4 +7,13 @@ schedule
 torch
 holidays
 google-generativeai
-finance-datareader
+torch
+transformers
+joblib
+numpy==1.25.2
+faiss-cpu==1.7.4
+python-dotenv
+csv-parse
+dayjs
+date-fns
+p-limit

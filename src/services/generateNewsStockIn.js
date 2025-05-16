@@ -28,15 +28,10 @@ async function getStockInfo(stockCodeOrName) {
 }
 
 // 최근 특정 주식 관련 뉴스 가져오기
-async function getRecentStockNews(stockCode) {
+async function getRecentStockNews(stock_name) {
     let result = { rows: [] };
-    const stockInfo = await getStockInfo(stockCode);
-    if (!stockInfo) {
-        return [];
-    }
-    
+
     try {
-        // 개별주식 뉴스 중 representative가 정확히 해당 회사명과 일치하는 것을 찾음
         const query = `
             SELECT nr.id, nr.title, nr.content, nr.date
             FROM news_raw nr
@@ -48,14 +43,15 @@ async function getRecentStockNews(stockCode) {
             LIMIT 20
         `;
         
-        result = await pool.query(query, [stockInfo.stock_name]);
-        console.log(`${stockInfo.stock_name} 관련 뉴스 ${result.rows.length}개 찾음`);
+        result = await pool.query(query, [stock_name]);
+        console.log(`${stock_name} 관련 뉴스 ${result.rows.length}개 찾음`);
     } catch (error) {
         console.error('Error in getRecentStockNews:', error);
     }
     
     return result.rows;
 }
+
 
 // Gemini를 사용하여 주식 이슈 요약 생성
 async function generateStockSummary(stockInfo, news) {
@@ -77,105 +73,64 @@ async function generateStockSummary(stockInfo, news) {
         최근 20일간의 ${stockInfo.stock_name}(${stockInfo.stock_code}) 관련 뉴스를 분석하여 가장 중요한 이슈 5가지를 추출해주세요.
         일반 투자자가 이해할 수 있는 수준으로 설명해주세요.
         
-        반드시 다음 형식으로 작성해주세요:
+        반드시 다음의 json 형식으로 작성해주세요:
         
-        이슈 1:
-        - 이슈 제목: [제목]
-        - 이슈 설명: [설명]
-        - 관련 지표: [지표(실적, 매출, ROE 등)]
-        - 주가 영향: [영향(상승요인/하락요인)]
-        
-        이슈 2:
-        - 이슈 제목: [제목]
-        - 이슈 설명: [설명]
-        - 관련 지표: [지표]
-        - 주가 영향: [영향]
-        
-        (이하 이슈 3, 4, 5도 동일한 형식으로 작성)
-        
-        분석할 뉴스:
+        [
+            {
+                "title": "이슈 제목",
+                "description": "이슈 설명 (한 문단)",
+                "indicators": ["관련 지표1", "관련 지표2"],
+                "impact": "주가에 미친 영향 요약"
+            },
+            ...
+        ]
+
+        불필요한 꾸밈말 없이 간결하게 정리해주세요.
+
+        분석할 뉴스 목록:
         ${news.map(n => `- ${n.title} (${n.date})`).join('\n')}
-    `;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    console.log('Gemini 응답:', responseText); // 디버깅을 위한 로그 추가
-    
-    // 응답 파싱
-    const issues = [];
-    const lines = responseText.split('\n');
-    
-    let currentIssue = null;
-    
-    for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) continue;
-
-        if (trimmedLine.startsWith('이슈')) {
-            if (currentIssue && Object.keys(currentIssue).length > 0) {
-                issues.push(currentIssue);
-            }
-            currentIssue = {
-                title: '',
-                description: '',
-                indicators: '',
-                impact: ''
+        `;
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text().trim();
+        
+        let issues;
+        try {
+            const cleanedText = responseText
+                .replace(/^```json/, '')
+                .replace(/^```/, '')
+                .replace(/```$/, '')
+                .trim();
+        
+            issues = JSON.parse(cleanedText);
+        } catch (err) {
+            console.error('❌ JSON 파싱 오류:', err);
+            return {
+                titles: [`${stockInfo.stock_name} 관련 최근 이슈가 없습니다`],
+                descriptions: ["이슈를 파싱할 수 없습니다."],
+                indicators: ["없음"],
+                impacts: ["없음"]
             };
-        } else if (trimmedLine.startsWith('- 이슈 제목:')) {
-            currentIssue.title = trimmedLine.replace('- 이슈 제목:', '').trim();
-        } else if (trimmedLine.startsWith('- 이슈 설명:')) {
-            currentIssue.description = trimmedLine.replace('- 이슈 설명:', '').trim();
-        } else if (trimmedLine.startsWith('- 관련 지표:')) {
-            currentIssue.indicators = trimmedLine.replace('- 관련 지표:', '').trim();
-        } else if (trimmedLine.startsWith('- 주가 영향:')) {
-            currentIssue.impact = trimmedLine.replace('- 주가 영향:', '').trim();
-        } else if (currentIssue && currentIssue.description) {
-            // 설명이 여러 줄인 경우
-            currentIssue.description += ' ' + trimmedLine;
         }
-    }
-    
-    if (currentIssue && Object.keys(currentIssue).length > 0) {
-        issues.push(currentIssue);
-    }
-
-    console.log('파싱된 이슈:', issues); // 디버깅을 위한 로그 추가
-
-    if (issues.length === 0) {
-        return {
-            titles: [`${stockInfo.stock_name} 관련 최근 이슈가 없습니다`],
-            descriptions: ["이슈를 추출할 수 없습니다."],
-            indicators: ["없음"],
-            impacts: ["없음"]
-        };
-    }
-
-    const summaryResult = {
-        titles: [],
-        descriptions: [],
-        indicators: [],
-        impacts: []
-    };
-
-    issues.forEach((issue) => {
-        if (issue.title && issue.description) {
-            summaryResult.titles.push(issue.title);
-            summaryResult.descriptions.push(issue.description);
-            summaryResult.indicators.push(issue.indicators || '');
-            summaryResult.impacts.push(issue.impact || '');
+        
+        if (!Array.isArray(issues) || issues.length === 0) {
+            return {
+                titles: [`${stockInfo.stock_name} 관련 최근 이슈가 없습니다`],
+                descriptions: ["최근 뉴스 기반 이슈가 충분하지 않습니다."],
+                indicators: ["-"],
+                impacts: ["-"]
+            };
         }
-    });
-
-    if (summaryResult.titles.length === 0) {
-        return {
-            titles: [`${stockInfo.stock_name} 관련 최근 이슈가 없습니다`],
-            descriptions: ["이슈를 추출할 수 없습니다."],
-            indicators: ["없음"],
-            impacts: ["없음"]
+        
+        const summaryResult = {
+            titles: issues.map(i => i.title || ''),
+            descriptions: issues.map(i => i.description || ''),
+            indicators: issues.map(i =>
+                Array.isArray(i.indicators) ? i.indicators.join(', ') : i.indicators || ''),
+            impacts: issues.map(i => i.impact || '')
         };
-    }
-
-    return summaryResult;
+        
+        return summaryResult;
+        
 }
 
 // DB에 주식 이슈 저장
@@ -226,10 +181,13 @@ async function generateAndSaveStockIssues(stockCodeOrName) {
     try {
         const stockInfo = await getStockInfo(stockCodeOrName);
         if (!stockInfo) {
-            throw new Error(`주식 정보를 찾을 수 없습니다: ${stockCodeOrName}`);
+            throw new Error(`!!! 주식 정보를 찾을 수 없습니다: ${stockCodeOrName}`);
         }
+
+        console.log(`📌 stock_code: ${stockInfo.stock_code}, stock_name: ${stockInfo.stock_name}`);
+
         
-        const recentNews = await getRecentStockNews(stockInfo.stock_code);
+        const recentNews = await getRecentStockNews(stockInfo.stock_name);
         console.log(`최근 뉴스 ${recentNews.length}개 발견`);
         
         const summary = await generateStockSummary(stockInfo, recentNews);

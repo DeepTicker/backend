@@ -37,7 +37,7 @@ router.get('/term', termController.getTermNews);
 router.post('/background', backgroundController.generateBackgroundContent);
 
 // 일반 뉴스 관련 라우트
-router.get('/', newsController.getNews);
-router.get('/:id', newsController.getNewsDetail);
+router.get('/', newsController.getNews); // /news : 뉴스 목록 반환 (뉴스 페이지)
+router.get('/:id', newsController.getNewsDetail); // /news/:id : 특정 뉴스 상세 정보 반환 (뉴스 상세 페이지)    
 
 module.exports = router;
