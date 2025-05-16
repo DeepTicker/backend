@@ -117,25 +117,42 @@ input_sequence = scaled_data  # 각 종목의 30일 종가 데이터를 사용
 predictions_scaled = sliding_predict(model, input_sequence)  # 예측 수행
 print(np.array(predictions_scaled).shape)
 
-def save_predictions_to_db(stock_ids, predictions_scaled, min_val, max_val):
+def save_predictions_to_db(stock_ids, predictions_scaled):
     insert_sql = """
     INSERT INTO stock_prediction_result (stock_id, predict_day, predicted_scaled, predicted_close)
     VALUES (%s, %s, %s, %s)
     ON CONFLICT (stock_id, predict_day) DO NOTHING;
     """
-    # predictions_scaled가 list라면 numpy 배열로 변환
+
     predictions_scaled = np.array(predictions_scaled, dtype=np.float32)
 
-    # predictions_scaled는 (30, 992) 형태 => 30일 예측, 992개 주식
-    for i, stock_id in enumerate(stock_ids):  # 각 stock_id에 대해 예측값 저장
+    cur.execute("SELECT stock_id, close_min, close_max FROM stock_scaler_info;")
+    scaler_info = {row[0]: (float(row[1]), float(row[2])) for row in cur.fetchall()}
+    print(scaler_info)
+
+
+    inserted = 0
+    for i, stock_id in enumerate(stock_ids):
+
+        min_val, max_val = scaler_info[str(stock_id)]
+
         for predict_day in range(30):
             predicted_scaled = float(predictions_scaled[predict_day, i])
             predicted_close = predicted_scaled * (max_val - min_val) + min_val
-            cur.execute(insert_sql, (stock_id, predict_day + 1, predicted_scaled, predicted_close))
 
-cur.execute("SELECT close_min, close_max FROM stock_scaler_info LIMIT 1;")
-min_val, max_val = cur.fetchone()
-save_predictions_to_db(stock_ids, predictions_scaled, min_val, max_val)  # 예측 결과 DB에 저장
+            try:
+                cur.execute(insert_sql, (stock_id, predict_day + 1, predicted_scaled, predicted_close))
+                inserted += 1
+            except Exception as e:
+                conn.rollback()
+                print(f"❗ INSERT 실패 (stock_id={stock_id}, day={predict_day+1}): {e}")
+
+    conn.commit()
+    cur.close()
+    print(f"✅ {inserted}개 예측 결과 저장 완료.")
+
+
+save_predictions_to_db(stock_ids, predictions_scaled)  # 예측 결과 DB에 저장
 
 
 # 트랜잭션 커밋 및 DB 연결 종료

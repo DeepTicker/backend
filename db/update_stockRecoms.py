@@ -169,10 +169,10 @@ def upload_excel_to_db(excel_path):
 
     # 4. 데이터 삽입
     for _, row in df.iterrows():
-        stock_code = row["종목코드"]
-        similar_1 = row["similar_1"]
-        similar_2 = row["similar_2"]
-        similar_3 = row["similar_3"]
+        stock_code = row["기준종목코드"]
+        similar_1 = row["similarity_stock_1_name"]
+        similar_2 = row["similarity_stock_2_name"]
+        similar_3 = row["similarity_stock_3_name"]
 
         stock_id = get_stock_id_by_code(stock_code)
         sim_id_1 = get_stock_id_by_name(similar_1)
@@ -192,9 +192,9 @@ def upload_excel_to_db(excel_path):
                 sim_id_2,
                 sim_id_3,
                 row["MarCap"],
-                row["cluster"],
-                row["cluster_name"],
-                row["기준일"]
+                row["기준클러스터"],
+                row["기준태그"],
+                '2025-05-16'  
             ))
 
     conn.commit()
