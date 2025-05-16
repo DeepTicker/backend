@@ -8,3 +8,4 @@ data/krx_15y_data.csv
 data/past_news.csv
 data/merged_15y_data.csv
 "backend-clean/" 
+.vercel
