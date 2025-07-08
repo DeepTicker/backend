@@ -39,12 +39,12 @@ async function generateDescription(prompt, retries = 3) {
 }
 
 async function generateIndustryDescription(industryName) {
-  const prompt = `${industryName} 업종에 대해 중학생이 이해할 수 있는 수준으로 한 두 문장으로 설명해주세요.`;
+  const prompt = `${industryName} 업종에 대해 중학생이 이해할 수 있는 수준으로 한 두 문장의 문어체로로 설명해주세요.`;
   return await generateDescription(prompt);
 }
 
 async function generateThemeDefinition(themeName) {
-  const prompt = `${themeName} 테마에 대해 중학생이 이해할 수 있는 수준으로 한 두 문장으로 설명해주세요.`;
+  const prompt = `${themeName} 테마에 대해 중학생이 이해할 수 있는 수준으로 한 두 문장의 문어체로 설명해주세요.`;
   return await generateDescription(prompt);
 }
 
@@ -127,8 +127,20 @@ async function initializeIndustryInfo() {
     industryGroups[industry].add(row.stock_code);
   });
 
+  const existingIndustries = await pool.query('SELECT industry_name FROM industry_info');
+  const existingIndustryNames = new Set(existingIndustries.rows.map(row => row.industry_name));
+
+  let processedCount = 0;
+  let skippedCount = 0;
+
   for (const [industryName, stockCodes] of Object.entries(industryGroups)) {
-    console.log(`→ 업종: ${industryName}`);
+    if (existingIndustryNames.has(industryName)) {
+      console.log(`⏭️ 업종: ${industryName} (이미 존재, 스킵)`);
+      skippedCount++;
+      continue;
+    }
+
+    console.log(`→ 업종: ${industryName} (새로 생성)`);
     const description = await generateIndustryDescription(industryName);
     const topStocks = Array.from(stockCodes);
 
@@ -136,6 +148,7 @@ async function initializeIndustryInfo() {
       'INSERT INTO industry_info (industry_name, description, top_stocks) VALUES ($1, $2, $3)',
       [industryName, description, topStocks]
     );
+    processedCount++;
   }
 
   console.log("✅ 업종 정보 삽입 완료!");
@@ -155,8 +168,20 @@ async function initializeThemeInfo() {
     });
   });
 
+  const existingThemes = await pool.query('SELECT theme_name FROM theme_info');
+  const existingThemeNames = new Set(existingThemes.rows.map(row => row.theme_name));
+
+  let processedCount = 0;
+  let skippedCount = 0;
+
   for (const [themeName, stockCodes] of Object.entries(themeGroups)) {
-    console.log(`→ 테마: ${themeName}`);
+    if (existingThemeNames.has(themeName)) {
+      console.log(`⏭️ 테마: ${themeName} (이미 존재, 스킵)`);
+      skippedCount++;
+      continue;
+    }
+
+    console.log(`→ 테마: ${themeName} (새로 생성)`);
     const definition = await generateThemeDefinition(themeName);
     const beneficiaries = Array.from(stockCodes);
 
@@ -164,6 +189,7 @@ async function initializeThemeInfo() {
       'INSERT INTO theme_info (theme_name, definition, beneficiaries) VALUES ($1, $2, $3)',
       [themeName, definition, beneficiaries]
     );
+    processedCount++;
   }
 
   console.log("✅ 테마 정보 삽입 완료!");
@@ -229,10 +255,10 @@ async function insertPastNewsFromCSV() {
   try {
     console.log("insertNewsStockData 시작");
 
-    await insertTmpStockFromCSV();
+    //await insertTmpStockFromCSV();
     await initializeIndustryInfo();
     await initializeThemeInfo();
-    await insertPastNewsFromCSV();
+    //await insertPastNewsFromCSV(); //과거뉴스 삽입은 아직
     
     console.log("insertNewsStockData 완료!");
   } catch (err) {

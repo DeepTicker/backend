@@ -17,7 +17,7 @@ const baseURL = "https://finance.naver.com/news/mainnews.naver";
 
 async function crawl() {
   const today = dayjs(); // 오늘
-  const endDate = today.subtract(2, "day"); // 2일 전
+  const endDate = today.subtract(3, "day"); // 3일 전
 
   let currentDate = today;
   let page = 1;

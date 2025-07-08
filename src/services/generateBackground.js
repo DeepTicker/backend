@@ -175,7 +175,7 @@ async function generateIntermediateThemeBackground(themeName) {
     
     const result = await pool.query(query, [themeName]);
     if (result.rows.length === 0) {
-        const msg = `⚠ '${themeName}' 테마는 관련 뉴스가 부족하여 정보를 제공할 수 없습니다.`;
+        const msg = `'${themeName}' 테마의의 관련 뉴스가 부족하여 정보를 제공할 수 없습니다.`;
         return {
             html: `<p class="message">${msg}</p>`,
             message: msg
