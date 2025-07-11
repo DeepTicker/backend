@@ -11,7 +11,9 @@
     "start:resummarize": "node src/scripts/resummarizeBadSummaries.js",
     "start:newsScheduler": "node src/scripts/newsScheduler2.js",
     "start:similarNews": "node src/scripts/processSimilarNews.js",
-    "start:pastStocks": "node src/scripts/initDBPastStocks.js"
+    "start:pastStocks": "node src/scripts/initDBPastStocks.js",
+    "start:batchSentiment": "node src/scripts/batchSentimentAnalysis.js",
+    "start:flaskServer": "python model/sentiment_server.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

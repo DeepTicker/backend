@@ -132,6 +132,38 @@ CREATE TABLE news_sentiment (
     UNIQUE(news_id, stock_code)
 );
 
+-- 새로운 감정분석 시스템을 위한 테이블들
+
+-- 1. 엔티티별 감정분석 (개별주/테마/산업군)
+CREATE TABLE entity_sentiment_analysis (
+    id SERIAL PRIMARY KEY,
+    news_id INTEGER NOT NULL REFERENCES news_raw(id),
+    entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('stock', 'theme', 'industry')),
+    entity_name TEXT NOT NULL,
+    entity_code VARCHAR(6), -- 주식인 경우만 (stock_code)
+    sentiment CHAR(1) NOT NULL CHECK (sentiment IN ('+', '-', '0')),
+    confidence_score FLOAT NOT NULL CHECK (confidence_score BETWEEN 0 AND 100),
+    reasoning TEXT,
+    analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(news_id, entity_type, entity_name)
+);
+
+-- 2. 전반적 뉴스 AI 분석 (매크로 경제 영향)
+CREATE TABLE macro_sentiment_analysis (
+    id SERIAL PRIMARY KEY,
+    news_id INTEGER NOT NULL REFERENCES news_raw(id),
+    industry_name TEXT NOT NULL,
+    sentiment CHAR(1) NOT NULL CHECK (sentiment IN ('+', '-', '0')),
+    overall_impact FLOAT, -- 전체 변화율 (예: +3.2%)
+    short_term_impact FLOAT,  -- 단기 변화율 (예: +2.1%)
+    medium_term_impact FLOAT, -- 중기 변화율 (예: +3.8%)
+    long_term_impact FLOAT,   -- 장기 변화율 (예: +5.2%)
+    related_stocks TEXT[],    -- 관련 주요 종목들
+    reasoning TEXT,           -- 영향 근거
+    analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(news_id, industry_name)
+);
+
 -- 2. KRX+코스피, 코스닥닥 15년 데이터
 CREATE TABLE krx_inv_15y_data (
     date DATE NOT NULL,
