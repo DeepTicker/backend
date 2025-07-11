@@ -168,7 +168,7 @@ CREATE TABLE macro_sentiment_analysis (
 CREATE TABLE krx_inv_15y_data (
     date DATE NOT NULL,
     market TEXT,               
-    ticker TEXT NOT NULL,
+    ticker TEXT NOT NULL,  -- 티커가 kospi, kosdaq : 주가지수수
     open INTEGER,
     high INTEGER,
     low INTEGER,

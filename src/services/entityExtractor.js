@@ -1,6 +1,5 @@
 const pool = require('../../config/db');
 
-
 async function extractEntitiesByCategory(newsId) {
     try {
         // 1. 뉴스 분류 정보 가져오기
