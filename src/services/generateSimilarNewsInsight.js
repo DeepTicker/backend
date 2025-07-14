@@ -40,20 +40,37 @@ ${pastDate}
 [뉴스 내용]
 ${newsText}
 
-[주요 종목 및 주가 변화]
+[주요 지수 및 시장 변화]
 `;
-  stockChanges.forEach(stock => {
-    const change = stock.변화율;
-    prompt += `- ${stock.종목명}: +3일 ${change['+3일']}%, +7일 ${change['+7일']}%, -3일대비 ${change['-3일대비']}%
+  
+  // 코스피, 코스닥 지수 변화 먼저 표시
+  const indices = stockChanges.filter(stock => ['kospi', 'kosdaq'].includes(stock.종목코드));
+  indices.forEach(index => {
+    const change = index.변화율;
+    const indexName = index.종목코드 === 'kospi' ? 'KOSPI' : 'KOSDAQ';
+    prompt += `- ${indexName}: +3일 ${change['+3일']}%, +7일 ${change['+7일']}%, -3일대비 ${change['-3일대비']}%
 `;
   });
 
-  prompt += `
-과거 뉴스와 주가 흐름을 기반으로 GPT의 전문가 관점에서 다음을 작성해주세요:
-1. 뉴스 요약 (1~2문장)
-2. 주가 변화에 대한 인과적 해설 및 투자 인사이트 (2문단)
+  // 개별 주식 변화 (있다면)
+  const stocks = stockChanges.filter(stock => !['kospi', 'kosdaq'].includes(stock.종목코드));
+  if (stocks.length > 0) {
+    prompt += `
+[주요 종목 변화]
+`;
+    stocks.forEach(stock => {
+      const change = stock.변화율;
+      prompt += `- ${stock.종목명}: +3일 ${change['+3일']}%, +7일 ${change['+7일']}%, -3일대비 ${change['-3일대비']}%
+`;
+    });
+  }
 
-출력은 반드시 아래와 같은 JSON 형식으로 출력해주세요. 문자열 외의 출력은 절대 하지 마세요요
+  prompt += `
+과거 뉴스와 시장 흐름을 기반으로 GPT의 전문가 관점에서 다음을 작성해주세요:
+1. 뉴스 요약 (1~2문장)
+2. 시장 지수 변화에 대한 인과적 해설 및 투자 인사이트 (2문단)
+
+출력은 반드시 아래와 같은 JSON 형식으로 출력해주세요. 문자열 외의 출력은 절대 하지 마세요:
 {
   "summary": "...",
   "insight": "..."
@@ -76,6 +93,8 @@ async function generateSimilarNewsInsight(newsId) {
   const { title, content, summary } = rows[0];
   const query = `${title} ${summary}`;
 
+  console.log(`뉴스 분석 시작: ${title}`);
+
   const similarNewsList = await runPythonScript('src/scripts/run_similarity_cluster.py', [query]);
 
   if (!Array.isArray(similarNewsList)) throw new Error('유사 뉴스 목록 오류');
@@ -84,6 +103,9 @@ async function generateSimilarNewsInsight(newsId) {
 
   for (const news of similarNewsList) {
     const { date, title: pastTitle } = news;
+    
+    console.log(`과거 사례 분석: ${pastTitle} (${date})`);
+    
     const newsTextResult = await pool.query(
       `SELECT content FROM news_raw WHERE title = $1
        UNION ALL
@@ -94,7 +116,8 @@ async function generateSimilarNewsInsight(newsId) {
 
     const pastContent = newsTextResult.rows[0].content;
 
-    const stockChanges = await runPythonScript('src/scripts/get_stock_change.py', [date, pastContent]);
+    // 코스피/코스닥 지수 중심으로 분석
+    const stockChanges = await runPythonScript('src/scripts/get_stock_change.py', [date, pastContent, 'kospi', 'kosdaq']);
 
     const prompt = buildPromptFromStockChange(pastContent, pastTitle, date, stockChanges);
 
@@ -111,6 +134,7 @@ async function generateSimilarNewsInsight(newsId) {
     });
   }
 
+  console.log(`뉴스 분석 완료: ${insights.length}개 사례`);
   return insights;
 }
 
