@@ -65,8 +65,8 @@ async function analyzeSentimentReal(newsId) {
         
         const newsContent = newsRows[0].title + ' ' + newsRows[0].content;
         
-        // 4. 엔티티별 실제 감정분석 실행 (배치 처리 + threshold 적용)
-        const confidenceThreshold = 55;
+        // 4. 엔티티별 실제 감정분석 실행
+        const confidenceThreshold = 60;
         const entityResults = await analyzeEntitySentimentsReal(newsId, newsContent, targets, confidenceThreshold);
         
         // 5. 전반적 뉴스 AI 분석
@@ -115,14 +115,6 @@ async function checkIfNewsAlreadyAnalyzed(newsId) {
     }
 }
 
-/**
- * 🔥 엔티티별 실제 감정분석 (Flask 배치 처리)
- * @param {number} newsId - 뉴스 ID
- * @param {string} content - 뉴스 내용
- * @param {Object} targets - 분석 대상 엔티티들
- * @param {number} confidenceThreshold
- * @returns {Array} 분석 결과 배열
- */
 async function analyzeEntitySentimentsReal(newsId, content, targets, confidenceThreshold = 55) {
     const results = [];
     
@@ -177,15 +169,11 @@ async function analyzeEntitySentimentsReal(newsId, content, targets, confidenceT
     }
 }
 
-/**
- * 📦 Fallback 엔티티 감정분석 (기존 개별 방식)
- * Flask 서버 실패시 사용되는 대체 방법
- */
+//fallback : gemeni연결 실패를 대비비
 async function analyzeEntitySentimentsFallback(newsId, content, targets) {
     console.log('⚠️ Fallback 감정분석 모드로 전환...');
     const results = [];
     
-    // 간단한 키워드 기반 분석으로 대체
     const allEntities = [
         ...targets.stocks.map(s => ({...s, type: 'stock'})),
         ...targets.themes.map(t => ({...t, type: 'theme'})),
@@ -203,13 +191,6 @@ async function analyzeEntitySentimentsFallback(newsId, content, targets) {
     return results;
 }
 
-/**
- * 전반적 뉴스 실제 Gemini AI 분석
- * @param {number} newsId - 뉴스 ID
- * @param {string} content - 뉴스 내용
- * @param {Array} macroTargets - 전반적 분석 대상
- * @returns {Array} 매크로 분석 결과
- */
 async function analyzeMacroSentimentsReal(newsId, content, macroTargets) {
     if (macroTargets.length === 0) {
         return [];
@@ -217,9 +198,9 @@ async function analyzeMacroSentimentsReal(newsId, content, macroTargets) {
     
     try {
         console.log(`🤖 뉴스 ${newsId} Gemini 기반 전반적 분석 시작...`);
+        console.log(`📋 매크로 컨텍스트: ${macroTargets.map(t => t.name).join(', ')}`);
         
-        // Gemini API로 전반적 뉴스 분석
-        const affectedIndustries = await analyzeMacroWithGemini(content);
+        const affectedIndustries = await analyzeMacroWithGemini(content, macroTargets);
         const results = [];
         
         for (const industry of affectedIndustries) {
@@ -233,7 +214,7 @@ async function analyzeMacroSentimentsReal(newsId, content, macroTargets) {
     } catch (error) {
         console.error('Gemini 매크로 분석 실패, Mock으로 대체:', error);
         // 실패시 Mock 데이터로 대체
-        const fallbackIndustries = generateMacroIndustries(content);
+        const fallbackIndustries = generateMacroIndustries(content, macroTargets);
         const results = [];
         
         for (const industry of fallbackIndustries) {
@@ -246,15 +227,28 @@ async function analyzeMacroSentimentsReal(newsId, content, macroTargets) {
 }
 
 /**
- * Gemini API를 사용한 전반적 뉴스의 거시경제 영향 분석
+ * Gemini API를 사용한 전반적 뉴스의 거시경제 영향 분석 (개선된 버전)
  * @param {string} content - 뉴스 내용
+ * @param {Array} macroTargets - 매크로 분류 컨텍스트 정보
  * @returns {Array} 영향받는 산업군들
  */
-async function analyzeMacroWithGemini(content) {
+async function analyzeMacroWithGemini(content, macroTargets = []) {
+    // 매크로 컨텍스트 정보 추가
+    let contextInfo = '';
+    if (macroTargets.length > 0) {
+        contextInfo = '\n📋 분류된 거시경제 정보:\n';
+        macroTargets.forEach(target => {
+            contextInfo += `- 분야: ${target.name}\n`;
+            if (target.cause) contextInfo += `- 원인: ${target.cause}\n`;
+            if (target.effect) contextInfo += `- 예상 효과: ${target.effect}\n`;
+            contextInfo += '\n';
+        });
+    }
+
     const prompt = `다음 경제/금융 뉴스를 분석하여 국내 주식시장에 미칠 거시경제적 영향을 분석해주세요.
 
 뉴스 내용:
-${content}
+${content}${contextInfo}
 
 다음 JSON 형식으로 영향받을 주요 산업군 2-5개를 분석해주세요:
 
@@ -344,22 +338,29 @@ function getFallbackSentiment(entityName) {
 }
 
 /**
- * Mock 전반적 뉴스에서 영향받을 산업군들 생성 (임시)
+ * Mock 전반적 뉴스에서 영향받을 산업군들 생성 (임시) - 개선된 버전
  */
-function generateMacroIndustries(content) {
+function generateMacroIndustries(content, macroTargets = []) {
     const allIndustries = ['은행', '증권', '보험', '건설', '반도체', '자동차', '항공', '화학'];
     const numIndustries = Math.floor(Math.random() * 4) + 2; // 2-5개 산업
     
     // 뉴스 내용에서 핵심 키워드 추출
     const keywords = extractKeywordsFromContent(content);
     
+    // 매크로 컨텍스트 정보 활용
+    let contextualInfo = '';
+    if (macroTargets.length > 0) {
+        const macroInfo = macroTargets[0]; // 첫 번째 매크로 정보 사용
+        contextualInfo = `${macroInfo.name} 관련 이슈: ${macroInfo.cause || ''} -> ${macroInfo.effect || ''}`;
+    }
+    
     const shuffled = allIndustries.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, numIndustries).map(industry => {
         const sentiment = Math.random() > 0.5 ? '+' : '-';
         const baseImpact = (Math.random() * 4) + 0.5; // 0.5% ~ 4.5%
         
-        // 🔥 구체적인 reasoning 생성
-        const reasoning = generateMacroReasoning(industry, sentiment, keywords, content);
+        // 🔥 구체적인 reasoning 생성 (매크로 컨텍스트 포함)
+        const reasoning = generateMacroReasoning(industry, sentiment, keywords, content, contextualInfo);
         
         return {
             name: industry,
@@ -395,8 +396,9 @@ function extractKeywordsFromContent(content) {
 }
 
 //fallback모드일때를 대비 : 근데 실제에서는 gemini api 호출 실패가 일어나면 안되기 때문에 없어야할 일,,,,
-function generateMacroReasoning(industry, sentiment, keywords, content) {
+function generateMacroReasoning(industry, sentiment, keywords, content, contextualInfo = '') {
     const keywordText = keywords.length > 0 ? keywords.join(', ') : '시장 변화';
+    const contextText = contextualInfo ? `(${contextualInfo}) ` : '';
     
     const reasoningTemplates = {
         '은행': {
@@ -425,12 +427,20 @@ function generateMacroReasoning(industry, sentiment, keywords, content) {
         }
     };
     
+    let reasoning = '';
     if (reasoningTemplates[industry] && reasoningTemplates[industry][sentiment]) {
-        return reasoningTemplates[industry][sentiment];
+        reasoning = reasoningTemplates[industry][sentiment];
     } else {
         const sentimentText = sentiment === '+' ? '긍정적 영향이 예상됨' : '부정적 영향이 우려됨';
-        return `${keywordText} 변화로 인한 ${industry}업계 ${sentimentText}. 시장 상황에 따라 영향도가 달라질 수 있음.`;
+        reasoning = `${keywordText} 변화로 인한 ${industry}업계 ${sentimentText}. 시장 상황에 따라 영향도가 달라질 수 있음.`;
     }
+    
+    // 매크로 컨텍스트 정보가 있으면 추가
+    if (contextText) {
+        reasoning = `${contextText}${reasoning}`;
+    }
+    
+    return reasoning;
 }
 
 function getRelatedStocks(industry) {
