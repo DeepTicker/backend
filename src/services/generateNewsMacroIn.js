@@ -5,9 +5,10 @@ const { model } = require('../../config/gemini');
 // 최근 뉴스 가져오기
 async function getRecentMacroNews() {
     const query = `
-        SELECT nr.id, nr.title, nr.content, nr.date
+        SELECT nr.id, nr.title, nr.content, nr.date, mcm.category_name as representative
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
+        LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
         WHERE nc.category = '전반적'
         AND nr.date >= CURRENT_DATE - INTERVAL '20 days'
         ORDER BY nr.date DESC
@@ -65,7 +66,6 @@ async function generateMacroSummary(news, currentNewsId = null) {
 
     let issues;
     try {
-        // ✅ JSON 응답 파싱
         const cleanedText = responseText.trim()
         .replace(/^```json/, '')
         .replace(/^```/, '')
@@ -82,7 +82,6 @@ async function generateMacroSummary(news, currentNewsId = null) {
         throw new Error('No valid issues could be parsed from the response');
     }
 
-    // ✅ summaryResult에 필요한 필드 수집
     const summaryResult = {
         titles: issues.map(i => i.title || ''),
         descriptions: issues.map(i => i.description || ''),

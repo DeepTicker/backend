@@ -4,9 +4,19 @@ async function extractEntitiesByCategory(newsId) {
     try {
         // 1. 뉴스 분류 정보 가져오기
         const classificationsQuery = `
-            SELECT nc.category, nc.representative, nr.title, nr.content
+            SELECT nc.category, 
+                   CASE 
+                     WHEN nc.category = '개별주' THEN ts.stock_name
+                     WHEN nc.category = '전반적' THEN mcm.category_name
+                     WHEN nc.category = '산업군' THEN nc.industry_name
+                     WHEN nc.category = '테마' THEN nc.theme_name
+                     ELSE '기타'
+                   END as representative,
+                   nr.title, nr.content
             FROM news_classification nc
             JOIN news_raw nr ON nc.news_id = nr.id
+            LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+            LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
             WHERE nc.news_id = $1 AND nc.category != '그 외'
         `;
         

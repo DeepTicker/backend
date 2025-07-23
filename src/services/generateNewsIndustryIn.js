@@ -9,7 +9,7 @@ async function getNewsInfo(newsId) {
     if (!newsId) return null;
 
     const query = `
-        SELECT nr.id, nr.title, nr.content, nc.category, nc.representative
+        SELECT nr.id, nr.title, nr.content, nc.category, nc.industry_name as representative
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
         WHERE nr.id = $1
@@ -22,11 +22,11 @@ async function getNewsInfo(newsId) {
 // 산업군별 최근 뉴스 가져오기
 async function getRecentIndustryNews(industryName) {
     const query = `
-        SELECT nr.id, nr.title, nr.content, nc.representative, nr.date AS published_at
+        SELECT nr.id, nr.title, nr.content, nc.industry_name as representative, nr.date AS published_at
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
         WHERE nc.category = '산업군'
-        AND nc.representative = $1
+        AND nc.industry_name = $1
         AND nr.date >= CURRENT_DATE - INTERVAL '20 days'
         ORDER BY nr.date DESC
     `;
@@ -35,7 +35,7 @@ async function getRecentIndustryNews(industryName) {
     return result.rows;
 }
 
-// Gemini를 사용하여 산업군 이슈 요약 생성
+
 // Gemini를 사용하여 산업군 이슈 요약 생성
 async function generateIndustrySummary(industryName, news) {
     console.log('=== generateIndustrySummary 시작 ===');

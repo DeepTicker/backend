@@ -8,7 +8,7 @@ async function getNewsInfo(newsId) {
     if (!newsId) return null;
 
     const query = `
-        SELECT nr.id, nr.title, nr.content, nc.category, nc.representative
+        SELECT nr.id, nr.title, nr.content, nc.category, nc.theme_name as representative
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
         WHERE nr.id = $1
@@ -21,11 +21,11 @@ async function getNewsInfo(newsId) {
 // 테마별 최근 뉴스 가져오기
 async function getRecentThemeNews(themeName) {
     const query = `
-        SELECT nr.id, nr.title, nr.content, nc.representative
+        SELECT nr.id, nr.title, nr.content, nc.theme_name as representative
         FROM news_raw nr
         JOIN news_classification nc ON nr.id = nc.news_id
         WHERE nc.category = '테마'
-        AND nc.representative = $1
+        AND nc.theme_name = $1
         AND nr.date >= CURRENT_DATE - INTERVAL '20 days'
         ORDER BY nr.date DESC
     `;
@@ -52,7 +52,6 @@ async function generateThemeSummary(themeName, news) {
         };
     }
 
-    // ✨ Gemini 호출 및 파싱은 그대로 진행
     const prompt = `
         ${themeName} 테마의 최근 20일간의 뉴스를 분석하여 가장 중요한 이슈 5가지를 추출해주세요.
         일반 투자자가 이해할 수 있도록 쉽게 작성해주세요.

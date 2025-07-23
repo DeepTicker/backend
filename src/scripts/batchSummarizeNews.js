@@ -10,13 +10,30 @@ const { generateAndSaveBackground } = require('../services/saveBackground');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+function getRepresentativeValue(classification) {
+  switch (classification.category) {
+    case '개별주':
+      return classification.stock_name || classification.stock_code || '개별주';
+    case '전반적':
+      return classification.macro_category_name || classification.macro_category_code || '전반적';
+    case '산업군':
+      return classification.industry_name || '산업군';
+    case '테마':
+      return classification.theme_name || '테마';
+    default:
+      return classification.category || '기타';
+  }
+}
+
 /**
  * 특정 뉴스의 한줄 요약 생성
  * @param {Object} row - 뉴스 데이터
  * @returns {Promise<string>} - 한줄 요약
  */
 async function generateHeadline(row) {
-  const prompt = generateHeadlinePrompt(row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
+  const categories = row.classifications.map(c => c.category);
+  const representatives = row.classifications.map(c => getRepresentativeValue(c));
+  const prompt = generateHeadlinePrompt(categories, representatives);
   //await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
@@ -28,7 +45,9 @@ async function generateHeadline(row) {
  * @returns {Promise<string>} - level별 요약
  */
 async function generateLevelSummary(row, level) {
-  const prompt = generateSummaryPrompt(level, row.classifications.map(c => c.category), row.classifications.map(c => c.representative));
+  const categories = row.classifications.map(c => c.category);
+  const representatives = row.classifications.map(c => getRepresentativeValue(c));
+  const prompt = generateSummaryPrompt(level, categories, representatives);
   //await sleep(4000);
   return await geminiSummary(prompt, row.content);
 }
@@ -78,7 +97,7 @@ async function summarizeNewsWithAllLevels(row) {
           await generateAndSaveBackground({
             id: row.id,
             category: cls.category,
-            representative: cls.representative,
+            representative: getRepresentativeValue(cls),
             level,
             content: row.content
           });
@@ -99,9 +118,40 @@ async function summarizeAllNews() {
   try {
     const query = `
       SELECT nr.id, nr.content,
-             json_agg(json_build_object('category', nc.category, 'representative', nc.representative)) AS classifications
+             json_agg(
+               CASE 
+                 WHEN nc.category = '개별주' THEN
+                   json_build_object(
+                     'category', nc.category,
+                     'stock_code', nc.stock_code,
+                     'stock_name', ts.stock_name
+                   )
+                 WHEN nc.category = '전반적' THEN
+                   json_build_object(
+                     'category', nc.category,
+                     'macro_category_code', nc.macro_category_code,
+                     'macro_category_name', mcm.category_name
+                   )
+                 WHEN nc.category = '산업군' THEN
+                   json_build_object(
+                     'category', nc.category,
+                     'industry_name', nc.industry_name
+                   )
+                 WHEN nc.category = '테마' THEN
+                   json_build_object(
+                     'category', nc.category,
+                     'theme_name', nc.theme_name
+                   )
+                 ELSE
+                   json_build_object(
+                     'category', nc.category
+                   )
+               END
+             ) AS classifications
       FROM news_raw nr
       JOIN news_classification nc ON nr.id = nc.news_id
+      LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+      LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
       WHERE nr.id NOT IN (
         SELECT news_id FROM news_summary GROUP BY news_id HAVING COUNT(level) = 3
       )

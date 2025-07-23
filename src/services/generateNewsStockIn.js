@@ -37,7 +37,7 @@ async function getRecentStockNews(stock_name) {
             FROM news_raw nr
             JOIN news_classification nc ON nr.id = nc.news_id
             WHERE nc.category = '개별주'
-            AND nc.representative = $1
+            AND nc.stock_code = $1
             AND nr.date >= CURRENT_DATE - INTERVAL '20 days'
             ORDER BY nr.date DESC
             LIMIT 20
