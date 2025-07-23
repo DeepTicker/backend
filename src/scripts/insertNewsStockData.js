@@ -255,7 +255,7 @@ async function insertPastNewsFromCSV() {
   try {
     console.log("insertNewsStockData 시작");
 
-    //await insertTmpStockFromCSV();
+    await insertTmpStockFromCSV();
     await initializeIndustryInfo();
     await initializeThemeInfo();
     //await insertPastNewsFromCSV(); //과거뉴스 삽입은 아직

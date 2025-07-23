@@ -1,10 +1,10 @@
 {
   "scripts": {
     "start": "node app.js",
-    "init2:db": "node src/scripts/initDB.js",
+    "init:db": "node src/scripts/initDB.js",
     "seed:stocksfornews": "node src/scripts/insertNewsStockData.js",
     "crawl:news": "node src/scripts/crawlNews.js",
-    "start:classify": "python src/scripts/classify_news.py",
+    "start:classify": "python src/scripts/classify_news_optimized.py",
     "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js",
     "start:evaluate": "python src/scripts/evaluate_summaries.py",
     "start:getTerms": "node src/scripts/processNewsTerms.js",

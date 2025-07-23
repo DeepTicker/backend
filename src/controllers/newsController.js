@@ -1,4 +1,4 @@
-// src/controllers/newsController.js
+// src/controllers/newsController.js (최적화된 DB 스키마용)
 const pool = require('../../config/db');
 const { 
     generateIntermediateIndustryBackground,
@@ -13,30 +13,66 @@ const {
 } = require('../services/generateBackground');
 const { model } = require('../../config/gemini');
 
-// 메인 뉴스 조회 컨트롤러 (getNewsList.js에서 통합)
+// 메인 뉴스 조회 컨트롤러 (최적화된 스키마 사용)
 async function getMainNews(req, res) {
   const limit = parseInt(req.query.limit) || 5;
   try {
-    //전체 개수 쿼리
+    // 전체 개수 쿼리
     const totalQuery = `SELECT COUNT(*) FROM news_raw`;
     const { rows: countRows } = await pool.query(totalQuery);
     const totalNews = parseInt(countRows[0].count);
 
-    // 뉴스 목록 쿼리
+    // 뉴스 목록 쿼리 (최적화된 구조)
     const query = `
       SELECT 
         nr.id, 
         nr.title, 
         nr.press, 
         nr.date,
-        json_agg(
-          json_build_object(
-            'category', nc.category,
-            'representative', nc.representative
-          )
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN nc.category = '개별주' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'stock_code', nc.stock_code,
+                  'stock_name', ts.stock_name,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '전반적' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'macro_category_code', nc.macro_category_code,
+                  'macro_category_name', mcm.category_name,
+                  'macro_cause', nc.macro_cause,
+                  'macro_effect', nc.macro_effect,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '산업군' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'industry_name', nc.industry_name,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '테마' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'theme_name', nc.theme_name,
+                  'confidence', nc.confidence_score
+                )
+              ELSE
+                json_build_object(
+                  'category', nc.category,
+                  'confidence', nc.confidence_score
+                )
+            END
+          ) FILTER (WHERE nc.category IS NOT NULL),
+          '[]'
         ) as classifications
       FROM news_raw nr
       LEFT JOIN news_classification nc ON nr.id = nc.news_id
+      LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+      LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
       GROUP BY nr.id, nr.title, nr.press, nr.date
       ORDER BY nr.date DESC NULLS LAST, nr.id DESC
       LIMIT $1
@@ -50,7 +86,7 @@ async function getMainNews(req, res) {
   }
 }
 
-// 뉴스 목록 조회 컨트롤러 (getNewsList.js에서 통합)
+// 뉴스 목록 조회 컨트롤러 (최적화된 스키마 사용)
 async function getNewsList(req, res) {
   const page = parseInt(req.query.page) || 1;
   const size = parseInt(req.query.size) || 20;
@@ -63,14 +99,50 @@ async function getNewsList(req, res) {
         nr.title, 
         nr.press, 
         nr.date,
-        json_agg(
-          json_build_object(
-            'category', nc.category,
-            'representative', nc.representative
-          )
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN nc.category = '개별주' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'stock_code', nc.stock_code,
+                  'stock_name', ts.stock_name,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '전반적' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'macro_category_code', nc.macro_category_code,
+                  'macro_category_name', mcm.category_name,
+                  'macro_cause', nc.macro_cause,
+                  'macro_effect', nc.macro_effect,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '산업군' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'industry_name', nc.industry_name,
+                  'confidence', nc.confidence_score
+                )
+              WHEN nc.category = '테마' THEN
+                json_build_object(
+                  'category', nc.category,
+                  'theme_name', nc.theme_name,
+                  'confidence', nc.confidence_score
+                )
+              ELSE
+                json_build_object(
+                  'category', nc.category,
+                  'confidence', nc.confidence_score
+                )
+            END
+          ) FILTER (WHERE nc.category IS NOT NULL),
+          '[]'
         ) as classifications
       FROM news_raw nr
       LEFT JOIN news_classification nc ON nr.id = nc.news_id
+      LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+      LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
       GROUP BY nr.id, nr.title, nr.press, nr.date
       ORDER BY nr.date DESC NULLS LAST, nr.id DESC
       LIMIT $1 OFFSET $2
@@ -90,10 +162,10 @@ async function getNewsList(req, res) {
   }
 }
 
-// 뉴스 조회 컨트롤러
+// 필터링된 뉴스 조회 컨트롤러
 async function getNews(req, res) {
     try {
-        const { page, limit, category, startDate, endDate } = req.query;
+        const { page, limit, category, startDate, endDate, stock_code, macro_category } = req.query;
         
         // 파라미터 파싱 및 기본값 설정
         const parsedPage = parseInt(page) || 1;
@@ -109,17 +181,68 @@ async function getNews(req, res) {
                 nr.reporter,
                 nr.url,
                 nr.date,
-                nc.category,
-                nc.representative
+                COALESCE(
+                  json_agg(
+                    CASE 
+                      WHEN nc.category = '개별주' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'stock_code', nc.stock_code,
+                          'stock_name', ts.stock_name,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '전반적' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'macro_category_code', nc.macro_category_code,
+                          'macro_category_name', mcm.category_name,
+                          'macro_cause', nc.macro_cause,
+                          'macro_effect', nc.macro_effect,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '산업군' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'industry_name', nc.industry_name,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '테마' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'theme_name', nc.theme_name,
+                          'confidence', nc.confidence_score
+                        )
+                      ELSE
+                        json_build_object(
+                          'category', nc.category,
+                          'confidence', nc.confidence_score
+                        )
+                    END
+                  ) FILTER (WHERE nc.category IS NOT NULL),
+                  '[]'
+                ) as classifications
             FROM news_raw nr
             LEFT JOIN news_classification nc ON nr.id = nc.news_id
+            LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+            LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
             WHERE 1=1
         `;
         const params = [];
 
+        // 필터링 조건 추가
         if (category) {
             query += ` AND nc.category = $${params.length + 1}`;
             params.push(category);
+        }
+
+        if (stock_code) {
+            query += ` AND nc.stock_code = $${params.length + 1}`;
+            params.push(stock_code);
+        }
+
+        if (macro_category) {
+            query += ` AND nc.macro_category_code = $${params.length + 1}`;
+            params.push(macro_category);
         }
 
         if (startDate) {
@@ -132,6 +255,7 @@ async function getNews(req, res) {
             params.push(endDate);
         }
 
+        query += ` GROUP BY nr.id, nr.title, nr.content, nr.press, nr.reporter, nr.url, nr.date`;
         query += ` ORDER BY nr.date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(parsedLimit, offset);
 
@@ -143,13 +267,13 @@ async function getNews(req, res) {
     }
 }
 
-// ✅ 수정된 뉴스 상세 조회 컨트롤러 (프론트에 맞춤)
+// 뉴스 상세 조회 컨트롤러 (최적화된 스키마 사용)
 async function getNewsDetail(req, res) {
     try {
         const newsId = parseInt(req.params.id);
         const level = req.query.level || '중급';
 
-        // 1. 뉴스 원문 + 분류 정보
+        // 1. 뉴스 원문 + 분류 정보 (최적화된 스키마 사용)
         const newsQuery = `
             SELECT 
                 nr.id,
@@ -164,21 +288,50 @@ async function getNewsDetail(req, res) {
                 nr.image_desc,
                 COALESCE(
                   json_agg(
-                    json_build_object(
-                      'category', nc.category,
-                      'representative', nc.representative,
-                      'stock_code', s.stock_code,
-                      'theme_name', t.theme_name
-                    )
+                    CASE 
+                      WHEN nc.category = '개별주' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'stock_code', nc.stock_code,
+                          'stock_name', ts.stock_name,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '전반적' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'macro_category_code', nc.macro_category_code,
+                          'macro_category_name', mcm.category_name,
+                          'macro_cause', nc.macro_cause,
+                          'macro_effect', nc.macro_effect,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '산업군' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'industry_name', nc.industry_name,
+                          'confidence', nc.confidence_score
+                        )
+                      WHEN nc.category = '테마' THEN
+                        json_build_object(
+                          'category', nc.category,
+                          'theme_name', nc.theme_name,
+                          'confidence', nc.confidence_score
+                        )
+                      ELSE
+                        json_build_object(
+                          'category', nc.category,
+                          'confidence', nc.confidence_score
+                        )
+                    END
                   ) FILTER (WHERE nc.category IS NOT NULL),
                   '[]'
                 ) as classifications
             FROM news_raw nr
             LEFT JOIN news_classification nc ON nr.id = nc.news_id
-            LEFT JOIN tmp_stock s ON nc.representative = s.stock_code OR nc.representative = s.stock_name
-            LEFT JOIN theme_info t ON nc.representative = t.theme_name
+            LEFT JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+            LEFT JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
             WHERE nr.id = $1
-            GROUP BY nr.id
+            GROUP BY nr.id, nr.title, nr.content, nr.press, nr.reporter, nr.url, nr.date, nr.crawled_at, nr.image_url, nr.image_desc
         `;
         const newsResult = await pool.query(newsQuery, [newsId]);
 
@@ -199,342 +352,108 @@ async function getNewsDetail(req, res) {
         const summaryResult = await pool.query(summaryQuery, [newsId, level]);
         const summary = summaryResult.rows[0] || { one_line_summary: null, full_summary: null };
 
-        // 3. 배경지식 조회
+        // 3. 배경지식 조회 (필요시 기존 로직 유지)
         const backgrounds = [];
-        let termCache = { used: false, html: null };
-        let hasAppendedTerm = false;
-
-        for (const classification of rawNews.classifications) {
-            const { category, representative } = classification;
-            let background = null;
-            let message = null;
-            let advancedData = null;
-
-            try {
-                if (level === '고급') {
-                    if (category === '개별주' && representative) {
-                        const stockResult = await generateAdvancedStockBackground(
-                            representative,
-                            rawNews.date,
-                            rawNews.content
-                        );
-                        if (stockResult) {
-                            background = stockResult.html;
-                            message = stockResult.message;
-                            advancedData = {
-                                stockData: stockResult.stockData,
-                                gptAnalysis: stockResult.gptAnalysis
-                            };
-                        }
-                    } else {
-                        // 산업군이나 다른 카테고리는 중급 레벨로 처리
-                        switch (category) {
-                            case '산업군':
-                                const industryResult = await generateIntermediateIndustryBackground(representative);
-                                if (industryResult) {
-                                    background = industryResult.html;
-                                    message = industryResult.message;
-                                }
-                                break;
-                            case '테마':
-                                const themeResult = await generateIntermediateThemeBackground(representative);
-                                if (themeResult) {
-                                    background = themeResult.html;
-                                    message = themeResult.message;
-                                }
-                                break;
-                            case '전반적':
-                                background = await generateIntermediateMacroBackground();
-                                break;
-                        }
-                    }
-                } else if (level === '중급') {
-                    switch (category) {
-                        case '산업군':
-                            const industryResult = await generateIntermediateIndustryBackground(representative);
-                            if (industryResult) {
-                                background = industryResult.html;
-                                message = industryResult.message;
-                            }
-                            break;
-                        case '테마':
-                            const themeResult = await generateIntermediateThemeBackground(representative);
-                            if (themeResult) {
-                                background = themeResult.html;
-                                message = themeResult.message;
-                            }
-                            break;
-                        case '전반적':
-                            background = await generateIntermediateMacroBackground();
-                            break;
-                        case '개별주':
-                            background = await generateIntermediateStockBackground(representative);
-                            break;
-                    }
-                } else if (level === '초급') {
-                    if (!termCache.used) {
-                        termCache.html = await generateBasicTermBackground(rawNews.content);
-                        termCache.used = true;
-                    }
         
-                    // ✅ 용어 설명은 한 번만 맨 앞에 따로 push
-                    if (!hasAppendedTerm && termCache.html) {
-                        backgrounds.push({
-                            category: '용어 설명',
-                            representative: '',
-                            background: termCache.html
-                        });
-                        hasAppendedTerm = true;
-                    }
-        
-                    if (category === '산업군') {
-                        const ind = await generateBasicIndustryBackground(representative);
-                        background = ind?.html || '';
-                    } else if (category === '테마') {
-                        const th = await generateBasicThemeBackground(representative);
-                        background = th?.html || '';
-                    } else {
-                        // 그 외는 용어 설명으로 퉁침
-                        background = null;
-                    }
-                }
+        // 응답 데이터 구성
+        const responseData = {
+            ...rawNews,
+            one_line_summary: summary.one_line_summary,
+            full_summary: summary.full_summary,
+            backgrounds: backgrounds
+        };
 
-                if (background) {
-                    backgrounds.push({ 
-                        category, 
-                        representative, 
-                        background,
-                        message,
-                        advancedData
-                    });
-                }
-            } catch (e) {
-                console.error(`⚠️ ${category} 배경지식 오류:`, e);
-            }
-        }
+        res.json(responseData);
 
-        // ✅ 프론트가 기대하는 응답 형식
-        res.json({
-            rawNews: {
-                id: rawNews.id,
-                title: rawNews.title,
-                content: rawNews.content,
-                press: rawNews.press,
-                date: rawNews.date,
-                classifications: rawNews.classifications,
-                image_url: rawNews.image_url,
-                image_desc: rawNews.image_desc
-            },
-            summary,
-            backgrounds
-        });
-    } catch (err) {
-        console.error('❌ 뉴스 상세 오류:', err);
-        res.status(500).json({ error: '서버 오류' });
+    } catch (error) {
+        console.error('Error fetching news detail:', error);
+        res.status(500).json({ error: error.message });
     }
 }
 
-// Gemini로 뉴스 요약 생성
-async function generateNewsSummary(req, res) {
+// 거시경제 분류별 뉴스 조회 (새로운 기능)
+async function getMacroNewsByCategory(req, res) {
     try {
-        const newsId = parseInt(req.params.id);
-        const level = req.query.level || '중급';
+        const { macro_category_code } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const size = parseInt(req.query.size) || 10;
+        const offset = (page - 1) * size;
 
-        // 1. DB에서 필요한 정보 조회
         const query = `
             SELECT 
-                nr.title, 
-                nr.content,
-                json_agg(
-                    json_build_object(
-                        'category', nc.category,
-                        'representative', nc.representative
-                    )
-                ) FILTER (WHERE nc.category IS NOT NULL) as classifications
+                nr.id,
+                nr.title,
+                nr.press,
+                nr.date,
+                nc.macro_cause,
+                nc.macro_effect,
+                nc.confidence_score,
+                mcm.category_name
             FROM news_raw nr
-            LEFT JOIN news_classification nc ON nr.id = nc.news_id
-            WHERE nr.id = $1
-            GROUP BY nr.id, nr.title, nr.content
+            JOIN news_classification nc ON nr.id = nc.news_id
+            JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
+            WHERE nc.category = '전반적' AND nc.macro_category_code = $1
+            ORDER BY nr.date DESC
+            LIMIT $2 OFFSET $3
         `;
-        const { rows } = await pool.query(query, [newsId]);
+
+        const { rows } = await pool.query(query, [macro_category_code, size, offset]);
         
-        if (rows.length === 0) {
-            return res.status(404).json({ error: '뉴스를 찾을 수 없습니다.' });
-        }
-        
-        const { title, content, classifications } = rows[0];
-
-        // 2. 한 줄 요약 생성
-        const headlinePrompt = generateHeadlinePrompt(classifications);
-        const headline = await geminiSummary(headlinePrompt, content);
-
-        // 3. 전체 요약 생성
-        const summaryPrompt = generateSummaryPrompt(level, classifications);
-        const fullSummary = await geminiSummary(summaryPrompt, content);
-
-        // 4. 기본 요약 정보 저장
-        const insertSummaryQuery = `
-            INSERT INTO news_summary 
-            (news_id, level, headline, summary)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (news_id, level) 
-            DO UPDATE SET 
-                headline = EXCLUDED.headline,
-                summary = EXCLUDED.summary,
-                generated_at = CURRENT_TIMESTAMP
+        // 총 개수 조회
+        const countQuery = `
+            SELECT COUNT(*) 
+            FROM news_classification nc
+            WHERE nc.category = '전반적' AND nc.macro_category_code = $1
         `;
-        
-        await pool.query(insertSummaryQuery, [
-            newsId, level, headline, fullSummary
-        ]);
+        const { rows: countRows } = await pool.query(countQuery, [macro_category_code]);
+        const total = parseInt(countRows[0].count);
 
-        // 5. 각 카테고리별 최신 이슈 조회
-        const backgrounds = [];
-        for (const classification of classifications) {
-            const { category, representative } = classification;
-            let background = null;
-            let message = null;
-            let advancedData = null;
-
-            try {
-                if (level === '고급') {
-                    if (category === '개별주' && representative) {
-                        const stockResult = await generateAdvancedStockBackground(
-                            representative,
-                            rows[0].date,
-                            rows[0].content
-                        );
-                        if (stockResult) {
-                            background = stockResult.html;
-                            message = stockResult.message;
-                            advancedData = {
-                                stockData: stockResult.stockData,
-                                gptAnalysis: stockResult.gptAnalysis
-                            };
-                        }
-                    } else {
-                        // 산업군이나 다른 카테고리는 중급 레벨로 처리
-                        switch (category) {
-                            case '산업군':
-                                const industryResult = await generateIntermediateIndustryBackground(representative);
-                                if (industryResult) {
-                                    background = industryResult.html;
-                                    message = industryResult.message;
-                                }
-                                break;
-                            case '테마':
-                                const themeResult = await generateIntermediateThemeBackground(representative);
-                                if (themeResult) {
-                                    background = themeResult.html;
-                                    message = themeResult.message;
-                                }
-                                break;
-                            case '전반적':
-                                background = await generateIntermediateMacroBackground();
-                                break;
-                        }
-                    }
-                } else if (level === '중급') {
-                    switch (category) {
-                        case '산업군':
-                            const industryResult = await generateIntermediateIndustryBackground(representative);
-                            if (industryResult) {
-                                background = industryResult.html;
-                                message = industryResult.message;
-                            }
-                            break;
-                        case '테마':
-                            const themeResult = await generateIntermediateThemeBackground(representative);
-                            if (themeResult) {
-                                background = themeResult.html;
-                                message = themeResult.message;
-                            }
-                            break;
-                        case '전반적':
-                            background = await generateIntermediateMacroBackground();
-                            break;
-                        case '개별주':
-                            background = await generateIntermediateStockBackground(representative);
-                            break;
-                    }
-                } else if (level === '초급') {
-                    if (!termCache.used) {
-                        termCache.html = await generateBasicTermBackground(content);
-                        termCache.used = true;
-                    }
-        
-                    // ✅ 용어 설명은 한 번만 맨 앞에 따로 push
-                    if (!hasAppendedTerm && termCache.html) {
-                        backgrounds.push({
-                            category: '용어 설명',
-                            representative: '',
-                            background: termCache.html
-                        });
-                        hasAppendedTerm = true;
-                    }
-        
-                    if (category === '산업군') {
-                        const ind = await generateBasicIndustryBackground(representative);
-                        background = ind?.html || '';
-                    } else if (category === '테마') {
-                        const th = await generateBasicThemeBackground(representative);
-                        background = th?.html || '';
-                    } else {
-                        // 그 외는 용어 설명으로 퉁침
-                        background = null;
-                    }
-                }
-
-                if (background) {
-                    backgrounds.push({
-                        category,
-                        representative,
-                        background,
-                        message,
-                        advancedData
-                    });
-                }
-            } catch (error) {
-                console.error(`${category} 배경지식 생성 중 오류:`, error);
-                // 개별 카테고리 오류는 전체 프로세스를 중단하지 않음
-            }
-        }
-
-        res.json({ 
-            headline,
-            fullSummary,
-            classifications,
-            backgrounds
-        });
+        res.json({ news: rows, total });
     } catch (error) {
-        console.error('Gemini 요약 오류:', error);
-        res.status(500).json({ error: 'Gemini 요약 실패' });
+        console.error('Error fetching macro news:', error);
+        res.status(500).json({ error: error.message });
     }
 }
 
-// 요약 프롬프트 생성 함수
-function generateSummaryPrompt(level, category, representative) {
-    return `
-        다음은 ${category} 카테고리의 ${representative} 관련 뉴스입니다.
-        ${level} 수준의 독자를 위해 다음 형식으로 요약해주세요:
-
-        1. 한 줄 요약 (핵심 내용)
-        2. 전체 요약 (상세 내용)
-        3. 배경 지식 (이해를 돕는 추가 정보)
-
-        각 섹션은 명확하게 구분해주세요.
-    `;
-}
-
-// Gemini API 호출 함수
-async function geminiSummary(prompt, content) {
+// 주식별 뉴스 조회 (새로운 기능)
+async function getStockNews(req, res) {
     try {
-        const result = await model.generateContent(prompt + "\n\n" + content);
-        const response = await result.response;
-        return response.text();
+        const { stock_code } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const size = parseInt(req.query.size) || 10;
+        const offset = (page - 1) * size;
+
+        const query = `
+            SELECT 
+                nr.id,
+                nr.title,
+                nr.press,
+                nr.date,
+                ts.stock_name,
+                nc.confidence_score
+            FROM news_raw nr
+            JOIN news_classification nc ON nr.id = nc.news_id
+            JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+            WHERE nc.category = '개별주' AND nc.stock_code = $1
+            ORDER BY nr.date DESC
+            LIMIT $2 OFFSET $3
+        `;
+
+        const { rows } = await pool.query(query, [stock_code, size, offset]);
+        
+        // 총 개수 조회
+        const countQuery = `
+            SELECT COUNT(*) 
+            FROM news_classification nc
+            WHERE nc.category = '개별주' AND nc.stock_code = $1
+        `;
+        const { rows: countRows } = await pool.query(countQuery, [stock_code]);
+        const total = parseInt(countRows[0].count);
+
+        res.json({ news: rows, total });
     } catch (error) {
-        console.error('Gemini API 호출 오류:', error);
-        throw error;
+        console.error('Error fetching stock news:', error);
+        res.status(500).json({ error: error.message });
     }
 }
 
@@ -543,5 +462,6 @@ module.exports = {
     getNewsList,
     getNews,
     getNewsDetail,
-    generateNewsSummary
+    getMacroNewsByCategory,
+    getStockNews
 };

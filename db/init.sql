@@ -119,6 +119,19 @@ CREATE TABLE tmp_stock (
     description TEXT
 );
 
+-- 2. 뉴스 원문
+CREATE TABLE news_raw (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    press VARCHAR(100),
+    reporter VARCHAR(100),
+    image_url TEXT,
+    image_desc TEXT,
+    url TEXT,
+    date TIMESTAMP,
+    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE news_sentiment (
     id SERIAL PRIMARY KEY,
@@ -154,12 +167,12 @@ CREATE TABLE macro_sentiment_analysis (
     news_id INTEGER NOT NULL REFERENCES news_raw(id),
     industry_name TEXT NOT NULL,
     sentiment CHAR(1) NOT NULL CHECK (sentiment IN ('+', '-', '0')),
-    overall_impact FLOAT, -- 전체 변화율 (예: +3.2%)
-    short_term_impact FLOAT,  -- 단기 변화율 (예: +2.1%)
-    medium_term_impact FLOAT, -- 중기 변화율 (예: +3.8%)
-    long_term_impact FLOAT,   -- 장기 변화율 (예: +5.2%)
-    related_stocks TEXT[],    -- 관련 주요 종목들
-    reasoning TEXT,           -- 영향 근거
+    overall_impact FLOAT,
+    short_term_impact FLOAT,
+    medium_term_impact FLOAT,
+    long_term_impact FLOAT,
+    related_stocks TEXT[],
+    reasoning TEXT,
     analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(news_id, industry_name)
 );
@@ -190,27 +203,66 @@ CREATE TABLE past_news (
     content TEXT
 );
 
--- 2. 뉴스 원문
-CREATE TABLE news_raw (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    press VARCHAR(100),
-    reporter VARCHAR(100),
-    image_url TEXT,
-    image_desc TEXT,
-    url TEXT,
-    date TIMESTAMP,
-    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- 3. 뉴스 분류
+-- 거시경제 분류 체계 마스터 테이블
+CREATE TABLE macro_category_master (
+    category_code VARCHAR(4) PRIMARY KEY,  -- A1, A2, ..., A18
+    category_name TEXT NOT NULL,           -- 통화정책, 무역·외교정책 등
+    description TEXT,                      -- 상세 설명
+    examples TEXT[],                       -- 예시 키워드 배열
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. 뉴스 분류
+-- 거시경제 분류 데이터 삽입
+INSERT INTO macro_category_master (category_code, category_name, description, examples) VALUES
+('A1', '통화정책', '기준금리, 양적완화, 통화긴축 관련', ARRAY['기준금리', '양적완화', '통화긴축', '연준 발언']),
+('A2', '무역·외교정책', '관세, 무역협상, FTA 관련', ARRAY['관세 인상', '관세 철폐', '무역협상', 'FTA', '외교 분쟁']),
+('A3', '환율·외환시장', '환율 변동 및 외환시장 이슈', ARRAY['원달러 환율', '달러 강세', '달러 약세', '환율조작국']),
+('A4', '에너지·원자재', '유가 및 원자재 가격 변동', ARRAY['유가 급등', '유가 급락', '광물 가격', '농산물 가격', 'OPEC']),
+('A5', '지정학 리스크', '전쟁, 분쟁, 제재 관련', ARRAY['전쟁', '쿠데타', '제재', '외교 갈등', '공급망 붕괴']),
+('A6', '재정정책', '정부 예산 및 세제 정책', ARRAY['정부예산', '감세', '증세', '복지정책', '적자']),
+('A7', '산업·금융 규제', '각종 규제 정책', ARRAY['금투세', 'DSR 규제', 'ESG', '공매도 규제']),
+('A8', '거시경제지표', 'GDP, 실업률 등 경제지표', ARRAY['GDP', '실업률', 'PMI', '소비자심리지수']),
+('A9', '자본시장 이슈', 'IPO, 공매도 등 자본시장', ARRAY['IPO', '공매도', '유동성', 'ETF']),
+('A10', '연기금/기관정책', '국민연금 등 기관투자자', ARRAY['국민연금', '투자 전략', 'TDF 편입']),
+('A11', '기술·산업 트렌드', '신기술 및 산업 트렌드', ARRAY['반도체 사이클', '2차전지', 'AI 반사이익']),
+('A12', '시장심리·심층반응', '투자심리 및 시장 반응', ARRAY['리스크온', '리스크오프', '과매수', '관망세']),
+('A13', '부동산 정책/시장', '부동산 규제 및 시장 동향', ARRAY['부동산 규제', '주택담보대출', '전세시장', '건설경기']),
+('A14', '디지털자산/핀테크', '암호화폐 및 디지털 금융', ARRAY['암호화폐 규제', 'CBDC', '핀테크 정책']),
+('A15', '인플레이션/물가', '물가 상승 및 인플레이션', ARRAY['소비자물가', '생산자물가', '인플레이션 기대']),
+('A16', 'ESG/지속가능성', 'ESG 및 지속가능 투자', ARRAY['탄소중립', '녹색금융', 'ESG 공시']),
+('A17', '글로벌 공급망', '국제 공급망 이슈', ARRAY['반도체 부족', '물류대란', '원자재 공급']),
+('A18', '중앙은행 커뮤니케이션', '중앙은행 발언 및 신호', ARRAY['연준 의장', '통화정책 신호', '포워드 가이던스']);
+
+--- 뉴스 분류류
 CREATE TABLE news_classification (
-    news_id INTEGER REFERENCES news_raw(id) ON DELETE CASCADE,
-    category news_category,        -- ENUM: '산업군', '테마', '전반적', '개별주' , '그 외'
-    representative TEXT,          -- 개별주: 종목명들, 산업군/테마: 하나의 명칭, 전반적: 요약문
-    classified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (news_id, category)
+    id SERIAL PRIMARY KEY,
+    news_id INTEGER NOT NULL REFERENCES news_raw(id) ON DELETE CASCADE,
+    category news_category NOT NULL,
+    
+    stock_code VARCHAR(6),
+    industry_name VARCHAR(50),
+    theme_name VARCHAR(50),
+    macro_category_code VARCHAR(4),
+    macro_cause TEXT,
+    macro_effect TEXT,
+    
+    confidence_score DECIMAL(3,2) NOT NULL CHECK (confidence_score >= 0.00 AND confidence_score <= 1.00),
+    classified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT fk_macro_category 
+        FOREIGN KEY (macro_category_code) 
+        REFERENCES macro_category_master(category_code),
+    CONSTRAINT fk_stock_code 
+        FOREIGN KEY (stock_code) 
+        REFERENCES tmp_stock(stock_code),
+    CONSTRAINT chk_category_fields CHECK (
+        (category = '개별주' AND stock_code IS NOT NULL) OR
+        (category = '산업군' AND industry_name IS NOT NULL) OR
+        (category = '테마' AND theme_name IS NOT NULL) OR
+        (category = '전반적' AND macro_category_code IS NOT NULL AND macro_cause IS NOT NULL) OR
+        (category = '그 외')
+    )
 );
 
 -- 4. 뉴스 요약
@@ -235,7 +287,7 @@ CREATE TABLE news_reference_summary (
   PRIMARY KEY (news_id, level)
 );
 
--- 4.6. 뉴스 용어 추출 : 각 뉴스별로 어떤 용어가 있는지 (이미 NER한 경우)
+-- 4.6. 뉴스 용어 추출
 CREATE TABLE news_terms (
   news_id INTEGER REFERENCES news_raw(id),
   term TEXT,
@@ -266,10 +318,10 @@ CREATE TABLE industry_info (
 CREATE TABLE industry_issue (
     id SERIAL PRIMARY KEY,
     industry_name TEXT NOT NULL REFERENCES industry_info(industry_name) ON DELETE CASCADE,
-    summary_date DATE NOT NULL, -- 요약 기준 날찌 : 이 날짜를 기준으로 최근 20일
-    summary_title TEXT[],     -- 이슈 제목 리스트 (구조화 요약)
-    summary_detail TEXT[],    -- 이슈 설명 리스트 (summary_title과 1:1 대응)
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- DB row가 언제 생성되었는지지
+    summary_date DATE NOT NULL,
+    summary_title TEXT[],
+    summary_detail TEXT[],
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT unique_industry_summary UNIQUE (industry_name, summary_date)
 );
@@ -284,10 +336,10 @@ CREATE TABLE theme_info (
 CREATE TABLE theme_issue (
     id SERIAL PRIMARY KEY,
     theme_name TEXT NOT NULL REFERENCES theme_info(theme_name) ON DELETE CASCADE,
-    summary_date DATE NOT NULL, -- 요약 기준 날찌 : 이 날짜를 기준으로 최근 20일
-    summary_title TEXT[],     -- 이슈 제목 리스트 (구조화 요약)
-    summary_detail TEXT[],    -- 이슈 설명 리스트 (summary_title과 1:1 대응)
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- DB row가 언제 생성되었는지지
+    summary_date DATE NOT NULL,
+    summary_title TEXT[],
+    summary_detail TEXT[],
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT unique_theme_summary UNIQUE (theme_name, summary_date)
 );
@@ -353,7 +405,7 @@ VALUES
 ('불마켓', '주가가 장기간 상승하는 시장', '주식 시장에서 주가가 지속적으로 상승하는 추세를 보이는 시장 상황으로, 낙관적 투자 심리가 지배적인 시기', '기타'),
 ('모멘텀', '가격이 움직이는 추세의 강도', '증권 가격 변화의 속도나 방향성을 나타내는 지표로, 현재의 가격 움직임이 지속될 가능성을 분석하는 데 사용', '기타'),
 ('헤지', '위험을 줄이기 위해 반대 포지션을 취하는 전략', '투자 위험을 감소시키기 위해 기존 포지션과 반대되는 포지션을 취함으로써 손실 가능성을 최소화하는 투자 전략', '기타'),
-('레버리지', '빌린 돈으로 투자 규모를 키우는 것', '자기자본 외에 타인자본을 활용하여 투자 규모를 확대함으로써 수익률을 높이거나 손실을 확대할 수 있는 투자 기법', '기타');
+('레버리지', '빌린 돈으로 투자 규모를 키우는 것', '자기자본 외에 타인자본을 활용하여 투자 규모를 확대함으로써 수익률을 높이거나 손실을 확대할 수 있는 투자 기법', '기타'),
 
 -- 경제/시장 분석
 ('디플레이션', '물가가 지속적으로 하락하는 현상', '상품 및 서비스의 전반적인 가격 수준이 지속적으로 하락하여 경기 위축을 유발하는 경제 현상', '경제용어'),
@@ -407,13 +459,113 @@ CREATE TABLE macro_issue (
 -- 개별주식 이슈 테이블
 CREATE TABLE stock_issue (
     id SERIAL PRIMARY KEY,
-    stock_code VARCHAR(20) NOT NULL,    -- 주식 코드
-    stock_name VARCHAR(50) NOT NULL,    -- 주식 이름
-    summary_date DATE NOT NULL,         -- 요약 날짜
-    summary_title TEXT[],               -- 이슈 제목 리스트
-    summary_detail TEXT[],              -- 이슈 설명 리스트
-    related_indicators TEXT[],          -- 관련 지표 리스트
-    price_impact TEXT[],                -- 주가 영향 리스트
+    stock_code VARCHAR(20) NOT NULL,
+    stock_name VARCHAR(50) NOT NULL,
+    summary_date DATE NOT NULL,
+    summary_title TEXT[],
+    summary_detail TEXT[],
+    related_indicators TEXT[],
+    price_impact TEXT[],
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(stock_code, summary_date)    -- 주식 코드와 날짜 조합으로 unique 제약
+    UNIQUE(stock_code, summary_date)
 );
+
+-- 1. 기본 조회용 복합 인덱스
+CREATE INDEX idx_news_classification_news_category ON news_classification(news_id, category);
+CREATE INDEX idx_news_classification_category_date ON news_classification(category, classified_at DESC);
+
+-- 2. 카테고리별 부분 인덱스
+CREATE INDEX idx_news_classification_stock_code ON news_classification(stock_code) 
+    WHERE category = '개별주' AND stock_code IS NOT NULL;
+
+CREATE INDEX idx_news_classification_macro_code ON news_classification(macro_category_code) 
+    WHERE category = '전반적' AND macro_category_code IS NOT NULL;
+
+CREATE INDEX idx_news_classification_industry ON news_classification(industry_name) 
+    WHERE category = '산업군' AND industry_name IS NOT NULL;
+
+CREATE INDEX idx_news_classification_theme ON news_classification(theme_name) 
+    WHERE category = '테마' AND theme_name IS NOT NULL;
+
+-- 3. 성능 분석용 인덱스
+CREATE INDEX idx_news_classification_confidence ON news_classification(confidence_score DESC) 
+    WHERE confidence_score >= 0.50;  -- 신뢰도 높은 분류만
+
+-- 4. 시계열 분석용 인덱스
+CREATE INDEX idx_news_classification_date_only ON news_classification(classified_at DESC);
+
+-- 5. 통계용 복합 인덱스
+CREATE INDEX idx_news_classification_stats ON news_classification(category, classified_at, confidence_score);
+
+-- 최적화된 뉴스-주식 연관 관계 뷰뷰
+CREATE VIEW news_stock_relations AS
+SELECT 
+    nc.news_id,
+    nc.stock_code,
+    ts.stock_name,
+    nr.title,
+    nr.date,
+    nc.confidence_score,
+    ts.industry_group,
+    ts.themes
+FROM news_classification nc
+JOIN news_raw nr ON nc.news_id = nr.id
+JOIN tmp_stock ts ON nc.stock_code = ts.stock_code
+WHERE nc.category = '개별주' AND nc.stock_code IS NOT NULL;
+
+-- 거시경제 뉴스 분석을 위한 뷰
+CREATE VIEW macro_news_analysis AS
+SELECT 
+    nc.news_id,
+    nc.macro_category_code,
+    mcm.category_name,
+    nc.macro_cause,
+    nc.macro_effect,
+    nr.title,
+    nr.date,
+    nc.confidence_score
+FROM news_classification nc
+JOIN macro_category_master mcm ON nc.macro_category_code = mcm.category_code
+JOIN news_raw nr ON nc.news_id = nr.id
+WHERE nc.category = '전반적';
+
+-- 최적화된 분류별 통계를 위한 뷰
+CREATE VIEW classification_stats AS
+SELECT 
+    category,
+    DATE_TRUNC('day', classified_at) as classification_date,
+    COUNT(*) as total_count,
+    ROUND(AVG(confidence_score), 3) as avg_confidence,
+    ROUND(MIN(confidence_score), 3) as min_confidence,
+    ROUND(MAX(confidence_score), 3) as max_confidence,
+    COUNT(CASE WHEN confidence_score >= 0.80 THEN 1 END) as high_confidence_count,
+    COUNT(CASE WHEN confidence_score < 0.50 THEN 1 END) as low_confidence_count
+FROM news_classification
+GROUP BY category, DATE_TRUNC('day', classified_at)
+ORDER BY classification_date DESC, total_count DESC;
+
+CREATE VIEW latest_classification_summary AS
+SELECT 
+    category,
+    COUNT(*) as total_count,
+    ROUND(AVG(confidence_score), 3) as avg_confidence,
+    MAX(classified_at) as last_classified_at,
+    CASE 
+        WHEN category = '개별주' THEN 
+            (SELECT COUNT(DISTINCT stock_code) FROM news_classification WHERE category = '개별주')::TEXT || ' 종목'
+        WHEN category = '전반적' THEN 
+            (SELECT COUNT(DISTINCT macro_category_code) FROM news_classification WHERE category = '전반적')::TEXT || ' 거시 카테고리'
+        WHEN category = '산업군' THEN 
+            (SELECT COUNT(DISTINCT industry_name) FROM news_classification WHERE category = '산업군')::TEXT || ' 산업군'
+        WHEN category = '테마' THEN 
+            (SELECT COUNT(DISTINCT theme_name) FROM news_classification WHERE category = '테마')::TEXT || ' 테마'
+        ELSE '기타'
+    END as detail_info
+FROM news_classification
+WHERE classified_at >= CURRENT_DATE - INTERVAL '30 days'  -- 최근 30일
+GROUP BY category
+ORDER BY total_count DESC;
+
+ANALYZE news_classification;
+ANALYZE macro_category_master;
+ANALYZE news_raw;
