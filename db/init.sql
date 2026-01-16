@@ -1,109 +1,109 @@
--- 1. stock_data: 주가 예측의 input data
-CREATE TABLE stock_data (
-    stock_id SERIAL PRIMARY KEY,
-    date DATE NOT NULL,
-    code VARCHAR(6) NOT NULL,
-    name VARCHAR(100), 
-    market_cap BIGINT,
-    open DECIMAL(10, 2),
-    high DECIMAL(10, 2),
-    low DECIMAL(10, 2),
-    close DECIMAL(10, 2),
-    volume INTEGER, 
-    change DECIMAL(5,2)
-    -- cpi DECIMAL(10, 2),
-    -- interest_rate DECIMAL(5, 2),
-    -- exchange_rate DECIMAL(10, 2),
-    -- eps DECIMAL(10, 2),
-    -- roe DECIMAL(5, 2)
-);
-
--- 2. stock_prediction: 예측 output 데이터
-CREATE TABLE stock_close_sequence (
-    id SERIAL PRIMARY KEY,
-    stock_id INTEGER REFERENCES stock_data(stock_id),
-    close_1 DECIMAL(10,2),
-    close_2 DECIMAL(10,2),
-    close_3 DECIMAL(10,2),
-    close_4 DECIMAL(10,2),
-    close_5 DECIMAL(10,2),
-    close_6 DECIMAL(10,2),
-    close_7 DECIMAL(10,2),
-    close_8 DECIMAL(10,2),
-    close_9 DECIMAL(10,2),
-    close_10 DECIMAL(10,2),
-    close_11 DECIMAL(10,2),
-    close_12 DECIMAL(10,2),
-    close_13 DECIMAL(10,2),
-    close_14 DECIMAL(10,2),
-    close_15 DECIMAL(10,2),
-    close_16 DECIMAL(10,2),
-    close_17 DECIMAL(10,2), 
-    close_18 DECIMAL(10,2),
-    close_19 DECIMAL(10,2),
-    close_20 DECIMAL(10,2),
-    close_21 DECIMAL(10,2),
-    close_22 DECIMAL(10,2),
-    close_23 DECIMAL(10,2),
-    close_24 DECIMAL(10,2),
-    close_25 DECIMAL(10,2),
-    close_26 DECIMAL(10,2),
-    close_27 DECIMAL(10,2),
-    close_28 DECIMAL(10,2),
-    close_29 DECIMAL(10,2),
-    close_30 DECIMAL(10,2)
-);
-
-CREATE TABLE stock_close_sequence_scaled (
-    stock_id INTEGER PRIMARY KEY REFERENCES stock_data(stock_id),
-    close_1 FLOAT, close_2 FLOAT, close_3 FLOAT, close_4 FLOAT, close_5 FLOAT,
-    close_6 FLOAT, close_7 FLOAT, close_8 FLOAT, close_9 FLOAT, close_10 FLOAT,
-    close_11 FLOAT, close_12 FLOAT, close_13 FLOAT, close_14 FLOAT, close_15 FLOAT,
-    close_16 FLOAT, close_17 FLOAT, close_18 FLOAT, close_19 FLOAT, close_20 FLOAT,
-    close_21 FLOAT, close_22 FLOAT, close_23 FLOAT, close_24 FLOAT, close_25 FLOAT,
-    close_26 FLOAT, close_27 FLOAT, close_28 FLOAT, close_29 FLOAT, close_30 FLOAT
-);
-
-CREATE TABLE stock_scaler_info (
-    stock_id TEXT PRIMARY KEY,
-    close_min DOUBLE PRECISION NOT NULL,
-    close_max DOUBLE PRECISION NOT NULL
-);
-
--- CREATE TABLE stock_prediction (
---     prediction_id SERIAL PRIMARY KEY,
---     stock_id INTEGER REFERENCES stock_data(stock_id),
---     predicted_date DATE NOT NULL,
---     predicted_close DECIMAL(10, 2),
---     confidence_score DECIMAL(5, 2),
---     var DECIMAL(10, 2),
---     conditional_var DECIMAL(10, 2)
+-- -- 1. stock_data: 주가 예측의 input data
+-- CREATE TABLE stock_data (
+--     stock_id SERIAL PRIMARY KEY,
+--     date DATE NOT NULL,
+--     code VARCHAR(6) NOT NULL,
+--     name VARCHAR(100), 
+--     market_cap BIGINT,
+--     open DECIMAL(10, 2),
+--     high DECIMAL(10, 2),
+--     low DECIMAL(10, 2),
+--     close DECIMAL(10, 2),
+--     volume INTEGER, 
+--     change DECIMAL(5,2)
+--     -- cpi DECIMAL(10, 2),
+--     -- interest_rate DECIMAL(5, 2),
+--     -- exchange_rate DECIMAL(10, 2),
+--     -- eps DECIMAL(10, 2),
+--     -- roe DECIMAL(5, 2)
 -- );
-CREATE TABLE stock_prediction_result (
-    stock_id INT NOT NULL,
-    predict_day INT NOT NULL,  -- 예측일: 1~30
-    predicted_scaled FLOAT NOT NULL,  -- 예측된 스케일된 값
-    predicted_close FLOAT NOT NULL,  -- 역변환된 원래 종가 값
-    PRIMARY KEY (stock_id, predict_day)
-);
+
+-- -- 2. stock_prediction: 예측 output 데이터
+-- CREATE TABLE stock_close_sequence (
+--     id SERIAL PRIMARY KEY,
+--     stock_id INTEGER REFERENCES stock_data(stock_id),
+--     close_1 DECIMAL(10,2),
+--     close_2 DECIMAL(10,2),
+--     close_3 DECIMAL(10,2),
+--     close_4 DECIMAL(10,2),
+--     close_5 DECIMAL(10,2),
+--     close_6 DECIMAL(10,2),
+--     close_7 DECIMAL(10,2),
+--     close_8 DECIMAL(10,2),
+--     close_9 DECIMAL(10,2),
+--     close_10 DECIMAL(10,2),
+--     close_11 DECIMAL(10,2),
+--     close_12 DECIMAL(10,2),
+--     close_13 DECIMAL(10,2),
+--     close_14 DECIMAL(10,2),
+--     close_15 DECIMAL(10,2),
+--     close_16 DECIMAL(10,2),
+--     close_17 DECIMAL(10,2), 
+--     close_18 DECIMAL(10,2),
+--     close_19 DECIMAL(10,2),
+--     close_20 DECIMAL(10,2),
+--     close_21 DECIMAL(10,2),
+--     close_22 DECIMAL(10,2),
+--     close_23 DECIMAL(10,2),
+--     close_24 DECIMAL(10,2),
+--     close_25 DECIMAL(10,2),
+--     close_26 DECIMAL(10,2),
+--     close_27 DECIMAL(10,2),
+--     close_28 DECIMAL(10,2),
+--     close_29 DECIMAL(10,2),
+--     close_30 DECIMAL(10,2)
+-- );
+
+-- CREATE TABLE stock_close_sequence_scaled (
+--     stock_id INTEGER PRIMARY KEY REFERENCES stock_data(stock_id),
+--     close_1 FLOAT, close_2 FLOAT, close_3 FLOAT, close_4 FLOAT, close_5 FLOAT,
+--     close_6 FLOAT, close_7 FLOAT, close_8 FLOAT, close_9 FLOAT, close_10 FLOAT,
+--     close_11 FLOAT, close_12 FLOAT, close_13 FLOAT, close_14 FLOAT, close_15 FLOAT,
+--     close_16 FLOAT, close_17 FLOAT, close_18 FLOAT, close_19 FLOAT, close_20 FLOAT,
+--     close_21 FLOAT, close_22 FLOAT, close_23 FLOAT, close_24 FLOAT, close_25 FLOAT,
+--     close_26 FLOAT, close_27 FLOAT, close_28 FLOAT, close_29 FLOAT, close_30 FLOAT
+-- );
+
+-- CREATE TABLE stock_scaler_info (
+--     stock_id TEXT PRIMARY KEY,
+--     close_min DOUBLE PRECISION NOT NULL,
+--     close_max DOUBLE PRECISION NOT NULL
+-- );
+
+-- -- CREATE TABLE stock_prediction (
+-- --     prediction_id SERIAL PRIMARY KEY,
+-- --     stock_id INTEGER REFERENCES stock_data(stock_id),
+-- --     predicted_date DATE NOT NULL,
+-- --     predicted_close DECIMAL(10, 2),
+-- --     confidence_score DECIMAL(5, 2),
+-- --     var DECIMAL(10, 2),
+-- --     conditional_var DECIMAL(10, 2)
+-- -- );
+-- CREATE TABLE stock_prediction_result (
+--     stock_id INT NOT NULL,
+--     predict_day INT NOT NULL,  -- 예측일: 1~30
+--     predicted_scaled FLOAT NOT NULL,  -- 예측된 스케일된 값
+--     predicted_close FLOAT NOT NULL,  -- 역변환된 원래 종가 값
+--     PRIMARY KEY (stock_id, predict_day)
+-- );
 
 
--- 3. stock_recommendation: 유사 종목 추천
-CREATE TABLE stock_recommendation (
-    recommendation_id SERIAL PRIMARY KEY,
-    stock_id INTEGER REFERENCES stock_data(stock_id),
-    similar_stock_id_1 INTEGER REFERENCES stock_data(stock_id),
-    similar_stock_id_2 INTEGER REFERENCES stock_data(stock_id),
-    similar_stock_id_3 INTEGER REFERENCES stock_data(stock_id),
-    marcap FLOAT,  
-    cluster_index INTEGER,  
-    cluster_name TEXT,  
-    recommended_date DATE NOT NULL
-);
-CREATE TABLE stock_catchphrases (
-    stock_id INT PRIMARY KEY,
-    phrase TEXT
-);
+-- -- 3. stock_recommendation: 유사 종목 추천
+-- CREATE TABLE stock_recommendation (
+--     recommendation_id SERIAL PRIMARY KEY,
+--     stock_id INTEGER REFERENCES stock_data(stock_id),
+--     similar_stock_id_1 INTEGER REFERENCES stock_data(stock_id),
+--     similar_stock_id_2 INTEGER REFERENCES stock_data(stock_id),
+--     similar_stock_id_3 INTEGER REFERENCES stock_data(stock_id),
+--     marcap FLOAT,  
+--     cluster_index INTEGER,  
+--     cluster_name TEXT,  
+--     recommended_date DATE NOT NULL
+-- );
+-- CREATE TABLE stock_catchphrases (
+--     stock_id INT PRIMARY KEY,
+--     phrase TEXT
+-- );
 
 
 ------------------NEWS-----------------------
@@ -119,6 +119,20 @@ CREATE TABLE tmp_stock (
     description TEXT
 );
 
+--- news_raw 먼저
+-- 2. 뉴스 원문
+CREATE TABLE news_raw (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    press VARCHAR(100),
+    reporter VARCHAR(100),
+    image_url TEXT,
+    image_desc TEXT,
+    url TEXT,
+    date TIMESTAMP,
+    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE news_sentiment (
     id SERIAL PRIMARY KEY,
@@ -190,19 +204,6 @@ CREATE TABLE past_news (
     content TEXT
 );
 
--- 2. 뉴스 원문
-CREATE TABLE news_raw (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    press VARCHAR(100),
-    reporter VARCHAR(100),
-    image_url TEXT,
-    image_desc TEXT,
-    url TEXT,
-    date TIMESTAMP,
-    crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 -- 3. 뉴스 분류
 CREATE TABLE news_classification (
@@ -353,7 +354,7 @@ VALUES
 ('불마켓', '주가가 장기간 상승하는 시장', '주식 시장에서 주가가 지속적으로 상승하는 추세를 보이는 시장 상황으로, 낙관적 투자 심리가 지배적인 시기', '기타'),
 ('모멘텀', '가격이 움직이는 추세의 강도', '증권 가격 변화의 속도나 방향성을 나타내는 지표로, 현재의 가격 움직임이 지속될 가능성을 분석하는 데 사용', '기타'),
 ('헤지', '위험을 줄이기 위해 반대 포지션을 취하는 전략', '투자 위험을 감소시키기 위해 기존 포지션과 반대되는 포지션을 취함으로써 손실 가능성을 최소화하는 투자 전략', '기타'),
-('레버리지', '빌린 돈으로 투자 규모를 키우는 것', '자기자본 외에 타인자본을 활용하여 투자 규모를 확대함으로써 수익률을 높이거나 손실을 확대할 수 있는 투자 기법', '기타');
+('레버리지', '빌린 돈으로 투자 규모를 키우는 것', '자기자본 외에 타인자본을 활용하여 투자 규모를 확대함으로써 수익률을 높이거나 손실을 확대할 수 있는 투자 기법', '기타'),
 
 -- 경제/시장 분석
 ('디플레이션', '물가가 지속적으로 하락하는 현상', '상품 및 서비스의 전반적인 가격 수준이 지속적으로 하락하여 경기 위축을 유발하는 경제 현상', '경제용어'),

@@ -11,3 +11,4 @@ data/merged_15y_data.csv
 .vercel
 export_macro_analysis.js
 macro_analysis_2025-07-09.csv
+__pycache__/
