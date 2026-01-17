@@ -49,5 +49,5 @@ def upload_excel_to_db(excel_path):
             print(f"{len(records)}개 중 중복 제외 후 삽입 완료.")
 
 if __name__ == "__main__":
-    excel_path = "../data/krx_stockdata.xlsx"  # 엑셀 파일 경로 수정
+    excel_path = "data/krx_stockdata.xlsx"  # 엑셀 파일 경로 수정
     upload_excel_to_db(excel_path)

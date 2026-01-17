@@ -95,4 +95,4 @@ def upload_close_row(excel_path):
     print(f"✅ MinMax 저장 완료된 종목 수: {inserted_minmax}")
 
 if __name__ == "__main__":
-    upload_close_row("../data/krx_stockseq.xlsx")
+    upload_close_row("data/krx_stockseq.xlsx")

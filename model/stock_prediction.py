@@ -142,6 +142,7 @@ def save_predictions_to_db(stock_ids, predictions_scaled):
 
             try:
                 cur.execute(insert_sql, (stock_id, predict_day + 1, predicted_scaled, predicted_close))
+                printf(f"✅ INSERT 성공 (stock_id={stock_id}, day={predict_day+1}): {predicted_scaled} -> {predicted_close}")
                 inserted += 1
             except Exception as e:
                 conn.rollback()

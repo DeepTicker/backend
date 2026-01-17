@@ -203,7 +203,7 @@ def upload_excel_to_db(excel_path):
     print("📥 엑셀 데이터 삽입 완료!")
 
 if __name__ == "__main__":
-    excel_path = "../data/krx_stockrecoms.xlsx"  # 엑셀 파일 경로 수정
+    excel_path = "data/krx_stockrecoms.xlsx"  # 엑셀 파일 경로 수정
     upload_excel_to_db(excel_path)
 
 
