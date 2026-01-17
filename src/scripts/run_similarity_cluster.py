@@ -42,12 +42,14 @@ clustered = (
 
 final = clustered.sort_values('similarity', ascending=False).head(cluster_k)
 
-# Step 5. JSON 출력
+# Step 5. JSON 출력 - 여러 유사 뉴스 반환
 if not final.empty:
-    result = {
-        "date": final.iloc[0]["날짜"].strftime("%Y-%m-%d"),
-        "title": final.iloc[0]["제목"]
-    }
-    print(json.dumps(result, ensure_ascii=False))
+    results = []
+    for _, row in final.iterrows():
+        results.append({
+            "date": row["날짜"].strftime("%Y-%m-%d"),
+            "title": row["제목"]
+        })
+    print(json.dumps(results, ensure_ascii=False))
 else:
-    print(json.dumps({"error": "no_result"}))
+    print(json.dumps([]))

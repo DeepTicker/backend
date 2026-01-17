@@ -3,7 +3,7 @@
     "start": "node app.js",
     "init2:db": "node src/scripts/initDB.js",
     "seed:stocksfornews": "node src/scripts/insertNewsStockData.js",
-    "crawl:news": "node src/scripts/testcrawlNews.js",
+    "crawl:news": "node src/scripts/crawlNews.js",
     "start:classify": "python src/scripts/classify_news.py",
     "start:geminiSummarize": "node src/scripts/batchSummarizeNews.js",
     "start:evaluate": "python src/scripts/evaluate_summaries.py",
@@ -11,7 +11,9 @@
     "start:resummarize": "node src/scripts/resummarizeBadSummaries.js",
     "start:newsScheduler": "node src/scripts/newsScheduler2.js",
     "start:similarNews": "node src/scripts/processSimilarNews.js",
-    "start:pastStocks": "node src/scripts/initDBPastStocks.js"
+    "start:pastStocks": "node src/scripts/initDBPastStocks.js",
+    "start:batchSentiment": "node src/scripts/batchSentimentAnalysis.js",
+    "start:flaskServer": "python model/sentiment_server.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

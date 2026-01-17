@@ -26,21 +26,21 @@ async function generateAndSaveBackground(news) {
         `INSERT INTO industry_issue (industry_name, summary_date, summary_title, summary_detail)
          VALUES ($1, $2, ARRAY[$3], ARRAY[$4])
          ON CONFLICT (industry_name, summary_date) DO NOTHING`,
-        [representative, today, '뉴스 요약', backgroundHTML]
+        [representative, today, '', backgroundHTML]
       );
     } else if (category === '테마') {
       await pool.query(
         `INSERT INTO theme_issue (theme_name, summary_date, summary_title, summary_detail)
          VALUES ($1, $2, ARRAY[$3], ARRAY[$4])
          ON CONFLICT (theme_name, summary_date) DO NOTHING`,
-        [representative, today, '뉴스 요약', backgroundHTML]
+        [representative, today, '', backgroundHTML]
       );
     } else if (category === '전반적') {
       await pool.query(
         `INSERT INTO macro_issue (summary_date, representative, summary_title, summary_detail, related_indicators, market_impact)
          VALUES ($1, $2, ARRAY[$3], ARRAY[$4], ARRAY['-'], ARRAY['-'])
          ON CONFLICT (summary_date, representative) DO NOTHING`,
-        [today, representative, '뉴스 요약', backgroundHTML]
+        [today, representative, '', backgroundHTML]
       );
     } else if (category === '개별주') {
       const stockCodeResult = await pool.query(
@@ -54,7 +54,7 @@ async function generateAndSaveBackground(news) {
         `INSERT INTO stock_issue (stock_code, stock_name, summary_date, summary_title, summary_detail, related_indicators, price_impact)
          VALUES ($1, $2, $3, ARRAY[$4], ARRAY[$5], ARRAY['-'], ARRAY['-'])
          ON CONFLICT (stock_code, summary_date) DO NOTHING`,
-        [stock.stock_code, stock.stock_name, today, '뉴스 요약', backgroundHTML]
+        [stock.stock_code, stock.stock_name, today, '', backgroundHTML]
       );
     }
   } catch (err) {

@@ -1,5 +1,4 @@
 psycopg2-binary
-load_dotenv
 pandas
 openpyxl
 scikit-learn
@@ -7,13 +6,14 @@ schedule
 torch
 holidays
 google-generativeai
-torch
 transformers
 joblib
 numpy==1.25.2
 faiss-cpu==1.7.4
 python-dotenv
-csv-parse
-dayjs
-date-fns
-p-limit
+# Additional packages for financial sentiment analysis
+accelerate
+sentencepiece
+protobuf
+konlpy
+JPype1

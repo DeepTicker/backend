@@ -31,7 +31,6 @@ function runCommand(command, label) {
     });
 }
 
-// 🔍 요약 품질이 낮은 개수 조회
 async function countBadSummaries() {
     return new Promise((resolve, reject) => {
         const client = new Client({
@@ -151,6 +150,10 @@ async function processNews() {
         // 6. Extract representative news
         log('➡️ Step 6: Starting representative news extraction');
         await runCommand('npm run start:similarNews', 'Representative News Extraction');
+
+        // 7. Batch sentiment analysis
+        log('➡️ Step 7: Starting batch sentiment analysis');
+        await runCommand('npm run start:batchSentiment', 'Batch Sentiment Analysis');
 
         log('🎉 All summaries passed evaluation! Pipeline completed.');
 
