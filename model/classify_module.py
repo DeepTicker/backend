@@ -8,7 +8,7 @@ import torch
 import re
 import json
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 import time
 
 # ---------------------------
@@ -26,24 +26,37 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 bert = AutoModel.from_pretrained(MODEL_NAME).to(device)
 
 # Gemini 설정
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# DB 연결
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "dbname": os.getenv("DB_NAME"),
-}
+# DB 연결 - 로컬 개발용
+# DB_CONFIG = {
+#     "host": os.getenv("DB_HOST"),
+#     "port": os.getenv("DB_PORT"),
+#     "user": os.getenv("DB_USER"),
+#     "password": os.getenv("DB_PASSWORD"),
+#     "dbname": os.getenv("DB_NAME"),
+# }
+
+# def get_stock_data():
+#     """DB에서 테마/업종/종목명 데이터 로드"""
+#     conn = psycopg2.connect(**DB_CONFIG)
+#     df = pd.read_sql("SELECT stock_code, stock_name, themes, industry_group FROM tmp_stock", conn)
+#     conn.close()
+#     return df
+
+
+# DB 연결 - 배포용
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_stock_data():
-    """DB에서 테마/업종/종목명 데이터 로드"""
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(
+        DATABASE_URL,
+        sslmode="require"
+    )
     df = pd.read_sql("SELECT stock_code, stock_name, themes, industry_group FROM tmp_stock", conn)
     conn.close()
     return df
+
 
 # 초기화 시 로딩
 df_stock = get_stock_data()
@@ -71,7 +84,8 @@ def embed_text(texts, batch_size=32):
                            truncation=True, max_length=128).to(device)
         with torch.no_grad():
             outputs = bert(**inputs)
-        embeddings = outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+        last_hidden_state = outputs[0] #output이 tuple으로 변경됨
+        embeddings = last_hidden_state.mean(dim=1).cpu().numpy()
         all_embeddings.append(embeddings)
     return np.vstack(all_embeddings)
 
@@ -177,7 +191,10 @@ JSON:
 
     try:
         time.sleep(6)
-        response = gemini.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=prompt
+        )
         response_text = response.text.strip()
         try:
             result = json.loads(response_text)

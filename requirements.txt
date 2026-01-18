@@ -5,7 +5,7 @@ scikit-learn
 schedule
 torch
 holidays
-google-generativeai
+google-genai
 transformers
 joblib
 numpy==1.26.4

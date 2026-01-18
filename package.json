@@ -16,7 +16,7 @@
     "start:flaskServer": "python model/sentiment_server.py"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^1.37.0",
     "axios": "^1.9.0",
     "chardet": "^2.1.0",
     "cheerio": "^1.0.0",

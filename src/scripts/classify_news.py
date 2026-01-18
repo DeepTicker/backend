@@ -3,6 +3,7 @@
 import sys
 import os
 import time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 import psycopg2
@@ -11,17 +12,7 @@ from model.classify_module import predict_categories_with_representatives, clean
 import joblib
 from dotenv import load_dotenv
 from datetime import datetime
-
-# .env에서 DB 설정 로드
-load_dotenv()
-
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST"),
-    "port": os.getenv("DB_PORT"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "dbname": os.getenv("DB_NAME"),
-}
+from config.db_conn import get_db_connection
 
 def load_unclassified_news(conn):
     query = """
@@ -48,7 +39,7 @@ def main():
     print("뉴스 분류 시작", flush=True)
 
     # DB 연결
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = get_db_connection() #config/db_conn.py에서 가져오기
 
     # 분류할 뉴스 로드
     df = load_unclassified_news(conn)

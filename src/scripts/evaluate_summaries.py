@@ -8,6 +8,9 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import os
 from dotenv import load_dotenv
 from collections import Counter
+from config.db_conn import get_db_connection
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 # 평가 기준: 수준별 BLEU 기준
 BLEU_THRESHOLDS = {
@@ -25,13 +28,7 @@ def is_redundant(summary):
 
 # 1. 환경변수 로드 및 DB 연결
 load_dotenv()
-conn = psycopg2.connect(
-    host=os.getenv("DB_HOST"),
-    database=os.getenv("DB_NAME"),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    port=os.getenv("DB_PORT")
-)
+conn = get_db_connection() #config/db_conn.py에서 가져오기
 cursor = conn.cursor()
 
 # 2. 평가할 뉴스 요약 불러오기 (reference 있으면 우선 사용)
