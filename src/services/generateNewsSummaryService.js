@@ -1,8 +1,7 @@
 // services/generateNewsSummaryService.js
-// npm install @google/generative-ai
 
 require('dotenv').config();
-const { genAI, model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 
 /**
  * Gemini로 뉴스 요약 생성
@@ -12,12 +11,12 @@ const { genAI, model } = require('../../config/gemini');
  */
 async function geminiSummary(prompt, content) {
   return withRetry(async () => {
-    const result = await model.generateContent([prompt, content]);
-    const response = await result.response;
-    if (!response || typeof response.text !== 'function') {
-      throw new Error("geminiSummary 응답 파싱 실패");
+    const fullPrompt = `${prompt}\n\n[뉴스 본문]\n${content}`;
+    const text = await generateText(fullPrompt);
+    if (!text) {
+      throw new Error("geminiSummary 응답 비어있음");
     }
-    return response.text();
+    return text;
   });
 }
 

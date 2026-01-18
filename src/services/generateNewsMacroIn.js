@@ -1,6 +1,6 @@
 // src/services/generateNewsMacroIn.js
 const pool = require('../../config/db');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 
 // 최근 뉴스 가져오기
 async function getRecentMacroNews() {
@@ -59,8 +59,7 @@ async function generateMacroSummary(news, currentNewsId = null) {
     `;
 
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const responseText = await generateText(prompt);
     console.log('Gemini 응답:', responseText);
 
     let issues;

@@ -1,7 +1,22 @@
 // config/gemini.js
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require("@google/genai");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const client = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
-module.exports = { genAI, model };
+async function generateText(prompt) {
+  try {
+    const res = await client.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: prompt,
+    });
+
+    return res.text;
+  } catch (error) {
+    console.error("Gemini Generate Error:", error);
+    throw error;
+  }
+}
+
+module.exports = { generateText };

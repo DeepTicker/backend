@@ -2,7 +2,7 @@
 
 const { spawn } = require('child_process');
 const pool = require('../../config/db');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 const dayjs = require('dayjs');
 
 function runPythonScript(scriptPath, args = []) {
@@ -98,9 +98,13 @@ async function generateSimilarNewsInsight(newsId) {
 
     const prompt = buildPromptFromStockChange(pastContent, pastTitle, date, stockChanges);
 
-    const gpt = await model.generateContent(prompt);
-    const response = await gpt.response;
-    const parsed = JSON.parse(response.text());
+    const rawText = await generateText(prompt);
+    const cleanedText = rawText.trim()
+      .replace(/^```json/i, '')
+      .replace(/^```/, '')
+      .replace(/```$/, '')
+      .trim();
+    const parsed = JSON.parse(cleanedText);
 
     insights.push({
       past_title: pastTitle,

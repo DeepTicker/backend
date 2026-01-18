@@ -1,7 +1,7 @@
 const path = require('path');
 const pool = require('../../config/db');
 const { extractEntitiesByCategory, formatEntitiesForSentiment } = require('./entityExtractor');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 const { analyzeSentimentBatch } = require('./flaskSentimentClient');
 
 
@@ -292,8 +292,8 @@ ${content}
 실제 시장 상황을 고려하여 현실적인 분석을 제공해주세요.`;
 
     try {
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        const result = await generateText(prompt);
+        const responseText = result.trim();
         
         console.log('Gemini 매크로 분석 응답:', responseText);
         

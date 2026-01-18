@@ -1,6 +1,6 @@
 // src/services/generateNewsThemeIn.js
 const pool = require('../../config/db');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 const { extractJsonBlock } = require('../utils/extractJsonBlock');
 
 // 특정 뉴스 정보 가져오기
@@ -71,8 +71,8 @@ async function generateThemeSummary(themeName, news) {
         ${news.map(n => `- ${n.title}`).join('\n')}
     `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const result = await generateText(prompt);
+    const responseText = result.trim();
 
     console.log('=== Gemini API 응답 ===');
     console.log('원본 응답:', responseText);

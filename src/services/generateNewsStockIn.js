@@ -1,6 +1,6 @@
 // src/services/generateNewsStockIn.js
 const pool = require('../../config/db');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 
 // 주식 코드 또는 회사명으로 주식 정보 가져오기
 async function getStockInfo(stockCodeOrName) {
@@ -90,8 +90,8 @@ async function generateStockSummary(stockInfo, news) {
         분석할 뉴스 목록:
         ${news.map(n => `- ${n.title} (${n.date})`).join('\n')}
         `;
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text().trim();
+        const result = await generateText(prompt);
+        const responseText = result.trim();
         
         let issues;
         try {

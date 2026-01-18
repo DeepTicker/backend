@@ -1,7 +1,7 @@
 // src/services/generateNewsIndustryIn.js
 // 뉴스가 산업군-industry_name : 해당 날짜 기준 최근 20일의 이슈를 요약 제공
 const pool = require('../../config/db');
-const { model } = require('../../config/gemini');
+const { generateText } = require('../../config/gemini');
 const { extractJsonBlock } = require('../utils/extractJsonBlock');
 
 // 특정 뉴스 정보 가져오기
@@ -75,8 +75,7 @@ ${news.map(n => `- ${n.title} (${n.published_at})`).join('\n')}
     console.log('=== Gemini API 호출 시작 ===');
     console.log('프롬프트:', prompt);
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    const responseText = await generateText(prompt);
 
     console.log('=== Gemini API 응답 ===');
     console.log('원본 응답:', responseText);
